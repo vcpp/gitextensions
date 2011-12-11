@@ -330,6 +330,13 @@ namespace GitCommands
             set { SafeSet("autostash", value, ref _autoStash); }
         }
 
+        private static bool? _preserveMergesOnRebase;
+        public static bool PreserveMergesOnRebase
+        {
+            get { return SafeGet("preserveMergesOnRebase", true, ref _preserveMergesOnRebase); }
+            set { SafeSet("preserveMergesOnRebase", value, ref _preserveMergesOnRebase); }
+        }
+
         private static bool? _orderRevisionByDate;
         public static bool OrderRevisionByDate
         {

@@ -29,6 +29,7 @@ namespace GitUI
             InitializeComponent();
             Translate();
             _defaultBranch = defaultBranch;
+            chkPreserveMerges.Checked = Settings.PreserveMergesOnRebase;
         }
 
         private void FormRebaseFormClosing(object sender, FormClosingEventArgs e)
@@ -175,6 +176,8 @@ namespace GitUI
 
             var form = new FormProcess(GitCommandHelpers.RebaseCmd(Branches.Text, chkInteractive.Checked, chkPreserveMerges.Checked, chkAutosquash.Checked));
             form.ShowDialog(this);
+            Settings.PreserveMergesOnRebase = chkPreserveMerges.Checked;
+
             if (form.OutputString.ToString().Trim() == "Current branch a is up to date.")
                 MessageBox.Show(this, _branchUpToDateText.Text, _branchUpToDateCaption.Text);
 

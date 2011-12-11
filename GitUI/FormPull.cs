@@ -79,6 +79,7 @@ namespace GitUI
             Rebase.Checked = Settings.PullMerge == "rebase";
             Fetch.Checked = Settings.PullMerge == "fetch";
             AutoStash.Checked = Settings.AutoStash;
+            chkPreserveMerges.Checked = Settings.PreserveMergesOnRebase;
             ErrorOccurred = false;
         }
 
@@ -203,6 +204,7 @@ namespace GitUI
                 Settings.PullMerge = "fetch";
 
             Settings.AutoStash = AutoStash.Checked;
+            Settings.PreserveMergesOnRebase = chkPreserveMerges.Checked;
 
             //ask only if exists commit not pushed to remote yet
             if (Rebase.Checked && PullFromRemote.Checked)
