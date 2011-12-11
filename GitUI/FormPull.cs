@@ -12,13 +12,13 @@ using GitUI.Script;
 
 namespace GitUI
 {
-    public partial class FormPull : GitExtensionsForm
+    public sealed partial class FormPull : GitExtensionsForm
     {
         private const string PuttyCaption = "PuTTY";
 
         private readonly TranslationString _areYouSureYouWantToRebaseMerge =
             new TranslationString("The current commit is a merge." + Environment.NewLine +
-                                  //"." + Environment.NewLine +
+            //"." + Environment.NewLine +
                                   "Are you sure you want to rebase this merge?");
 
         private readonly TranslationString _areYouSureYouWantToRebaseMergeCaption =
@@ -67,7 +67,7 @@ namespace GitUI
         {
             InitializeComponent();
             Translate();
-            
+
             UpdateRemotesList();
 
             branch = Settings.Module.GetSelectedBranch();
@@ -181,7 +181,7 @@ namespace GitUI
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes;
         }
 
-        public bool PullChanges()
+        private bool PullChanges()
         {
             if (PullFromUrl.Checked && string.IsNullOrEmpty(PullSource.Text))
             {
@@ -327,8 +327,8 @@ namespace GitUI
             }
             finally
             {
-                if (stashed && 
-                    process != null && 
+                if (stashed &&
+                    process != null &&
                     !process.ErrorOccurred() &&
                     !Settings.Module.InTheMiddleOfConflictedMerge() &&
                     !Settings.Module.InTheMiddleOfRebase() &&
@@ -336,7 +336,7 @@ namespace GitUI
                 {
                     new FormProcess("stash pop").ShowDialog(this);
                     MergeConflictHandler.HandleMergeConflicts(this);
-                }               
+                }
 
                 ScriptManager.RunEventScripts(ScriptEvent.AfterPull);
             }
@@ -427,7 +427,7 @@ namespace GitUI
             Rebase.Enabled = true;
         }
 
-        private bool bInternalUpdate = false;
+        private bool bInternalUpdate;
 
         private void AddRemoteClick(object sender, EventArgs e)
         {
@@ -448,6 +448,7 @@ namespace GitUI
         private void RebaseCheckedChanged(object sender, EventArgs e)
         {
             PullImage.BackgroundImage = Resources.Rebase;
+            chkPreserveMerges.Enabled = Rebase.Checked;
         }
 
         private void FetchCheckedChanged(object sender, EventArgs e)

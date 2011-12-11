@@ -52,6 +52,7 @@
             this.Stash = new System.Windows.Forms.Button();
             this.Mergetool = new System.Windows.Forms.Button();
             this.Tooltip = new System.Windows.Forms.ToolTip(this.components);
+            this.chkPreserveMerges = new System.Windows.Forms.CheckBox();
             this.splitContainer1.Panel1.SuspendLayout();
             this.splitContainer1.Panel2.SuspendLayout();
             this.splitContainer1.SuspendLayout();
@@ -75,6 +76,7 @@
             // 
             // splitContainer1.Panel2
             // 
+            this.splitContainer1.Panel2.Controls.Add(this.chkPreserveMerges);
             this.splitContainer1.Panel2.Controls.Add(this.groupBox2);
             this.splitContainer1.Panel2.Controls.Add(this.Pull);
             this.splitContainer1.Panel2.Controls.Add(this.AutoStash);
@@ -82,7 +84,7 @@
             this.splitContainer1.Panel2.Controls.Add(this.groupBox3);
             this.splitContainer1.Panel2.Controls.Add(this.Stash);
             this.splitContainer1.Panel2.Controls.Add(this.Mergetool);
-            this.splitContainer1.Size = new System.Drawing.Size(639, 312);
+            this.splitContainer1.Size = new System.Drawing.Size(639, 340);
             this.splitContainer1.SplitterDistance = 80;
             this.splitContainer1.TabIndex = 15;
             this.splitContainer1.TabStop = false;
@@ -95,7 +97,7 @@
             this.PullImage.Dock = System.Windows.Forms.DockStyle.Fill;
             this.PullImage.Location = new System.Drawing.Point(0, 0);
             this.PullImage.Name = "PullImage";
-            this.PullImage.Size = new System.Drawing.Size(80, 312);
+            this.PullImage.Size = new System.Drawing.Size(80, 340);
             this.PullImage.TabIndex = 18;
             this.PullImage.TabStop = false;
             // 
@@ -119,7 +121,7 @@
             this.PullFromUrl.AutoSize = true;
             this.PullFromUrl.Location = new System.Drawing.Point(7, 49);
             this.PullFromUrl.Name = "PullFromUrl";
-            this.PullFromUrl.Size = new System.Drawing.Size(49, 24);
+            this.PullFromUrl.Size = new System.Drawing.Size(40, 19);
             this.PullFromUrl.TabIndex = 1;
             this.PullFromUrl.Text = "Url";
             this.Tooltip.SetToolTip(this.PullFromUrl, "Url to pull from");
@@ -132,7 +134,7 @@
             this.PullFromRemote.Checked = true;
             this.PullFromRemote.Location = new System.Drawing.Point(7, 19);
             this.PullFromRemote.Name = "PullFromRemote";
-            this.PullFromRemote.Size = new System.Drawing.Size(82, 24);
+            this.PullFromRemote.Size = new System.Drawing.Size(66, 19);
             this.PullFromRemote.TabIndex = 0;
             this.PullFromRemote.TabStop = true;
             this.PullFromRemote.Text = "Remote";
@@ -157,7 +159,7 @@
             this._NO_TRANSLATE_Remotes.FormattingEnabled = true;
             this._NO_TRANSLATE_Remotes.Location = new System.Drawing.Point(148, 16);
             this._NO_TRANSLATE_Remotes.Name = "_NO_TRANSLATE_Remotes";
-            this._NO_TRANSLATE_Remotes.Size = new System.Drawing.Size(244, 28);
+            this._NO_TRANSLATE_Remotes.Size = new System.Drawing.Size(244, 23);
             this._NO_TRANSLATE_Remotes.TabIndex = 1;
             this._NO_TRANSLATE_Remotes.TextChanged += new System.EventHandler(this.Remotes_TextChanged);
             this._NO_TRANSLATE_Remotes.Validating += new System.ComponentModel.CancelEventHandler(this.RemotesValidating);
@@ -179,16 +181,17 @@
             this.PullSource.FormattingEnabled = true;
             this.PullSource.Location = new System.Drawing.Point(148, 48);
             this.PullSource.Name = "PullSource";
-            this.PullSource.Size = new System.Drawing.Size(244, 28);
+            this.PullSource.Size = new System.Drawing.Size(244, 23);
             this.PullSource.TabIndex = 4;
             this.PullSource.DropDown += new System.EventHandler(this.PullSourceDropDown);
             this.PullSource.Validating += new System.ComponentModel.CancelEventHandler(this.PullSourceValidating);
             // 
             // Pull
             // 
+            this.Pull.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.Pull.Image = global::GitUI.Properties.Resources._4;
             this.Pull.ImageAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            this.Pull.Location = new System.Drawing.Point(425, 282);
+            this.Pull.Location = new System.Drawing.Point(425, 310);
             this.Pull.Name = "Pull";
             this.Pull.Size = new System.Drawing.Size(111, 25);
             this.Pull.TabIndex = 40;
@@ -199,9 +202,9 @@
             // AutoStash
             // 
             this.AutoStash.AutoSize = true;
-            this.AutoStash.Location = new System.Drawing.Point(288, 286);
+            this.AutoStash.Location = new System.Drawing.Point(10, 285);
             this.AutoStash.Name = "AutoStash";
-            this.AutoStash.Size = new System.Drawing.Size(100, 24);
+            this.AutoStash.Size = new System.Drawing.Size(82, 19);
             this.AutoStash.TabIndex = 13;
             this.AutoStash.Text = "Auto stash";
             this.AutoStash.UseVisualStyleBackColor = true;
@@ -270,7 +273,7 @@
             this._NO_TRANSLATE_localBranch.Location = new System.Drawing.Point(148, 22);
             this._NO_TRANSLATE_localBranch.Margin = new System.Windows.Forms.Padding(0);
             this._NO_TRANSLATE_localBranch.Name = "_NO_TRANSLATE_localBranch";
-            this._NO_TRANSLATE_localBranch.Size = new System.Drawing.Size(85, 20);
+            this._NO_TRANSLATE_localBranch.Size = new System.Drawing.Size(69, 15);
             this._NO_TRANSLATE_localBranch.TabIndex = 9;
             this._NO_TRANSLATE_localBranch.Text = "(no branch)";
             this.Tooltip.SetToolTip(this._NO_TRANSLATE_localBranch, "Remote branch to pull. Leave empty to pull all branches.");
@@ -280,7 +283,7 @@
             this.label1.AutoSize = true;
             this.label1.Location = new System.Drawing.Point(9, 22);
             this.label1.Name = "label1";
-            this.label1.Size = new System.Drawing.Size(93, 20);
+            this.label1.Size = new System.Drawing.Size(75, 15);
             this.label1.TabIndex = 8;
             this.label1.Text = "Local branch";
             this.Tooltip.SetToolTip(this.label1, "Remote branch to pull. Leave empty to pull all branches.");
@@ -290,7 +293,7 @@
             this.Branches.FormattingEnabled = true;
             this.Branches.Location = new System.Drawing.Point(148, 46);
             this.Branches.Name = "Branches";
-            this.Branches.Size = new System.Drawing.Size(244, 28);
+            this.Branches.Size = new System.Drawing.Size(244, 23);
             this.Branches.TabIndex = 6;
             this.Branches.DropDown += new System.EventHandler(this.BranchesDropDown);
             // 
@@ -299,14 +302,15 @@
             this.label2.AutoSize = true;
             this.label2.Location = new System.Drawing.Point(8, 49);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(110, 20);
+            this.label2.Size = new System.Drawing.Size(88, 15);
             this.label2.TabIndex = 7;
             this.label2.Text = "Remote branch";
             this.Tooltip.SetToolTip(this.label2, "Remote branch to pull. Leave empty to pull all branches.");
             // 
             // Stash
             // 
-            this.Stash.Location = new System.Drawing.Point(150, 282);
+            this.Stash.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.Stash.Location = new System.Drawing.Point(150, 310);
             this.Stash.Name = "Stash";
             this.Stash.Size = new System.Drawing.Size(132, 25);
             this.Stash.TabIndex = 12;
@@ -316,7 +320,8 @@
             // 
             // Mergetool
             // 
-            this.Mergetool.Location = new System.Drawing.Point(3, 282);
+            this.Mergetool.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.Mergetool.Location = new System.Drawing.Point(3, 310);
             this.Mergetool.Name = "Mergetool";
             this.Mergetool.Size = new System.Drawing.Size(141, 25);
             this.Mergetool.TabIndex = 11;
@@ -324,12 +329,24 @@
             this.Mergetool.UseVisualStyleBackColor = true;
             this.Mergetool.Click += new System.EventHandler(this.MergetoolClick);
             // 
+            // chkPreserveMerges
+            // 
+            this.chkPreserveMerges.AutoSize = true;
+            this.chkPreserveMerges.Checked = true;
+            this.chkPreserveMerges.CheckState = System.Windows.Forms.CheckState.Checked;
+            this.chkPreserveMerges.Location = new System.Drawing.Point(200, 285);
+            this.chkPreserveMerges.Name = "chkPreserveMerges";
+            this.chkPreserveMerges.Size = new System.Drawing.Size(112, 19);
+            this.chkPreserveMerges.TabIndex = 41;
+            this.chkPreserveMerges.Text = "Preserve merges";
+            this.chkPreserveMerges.UseVisualStyleBackColor = true;
+            // 
             // FormPull
             // 
             this.AcceptButton = this.Pull;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 20F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(639, 312);
+            this.ClientSize = new System.Drawing.Size(639, 340);
             this.Controls.Add(this.splitContainer1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
             this.MaximizeBox = false;
@@ -377,5 +394,6 @@
         private System.Windows.Forms.ToolTip Tooltip;
         private System.Windows.Forms.Label _NO_TRANSLATE_localBranch;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.CheckBox chkPreserveMerges;
     }
 }
