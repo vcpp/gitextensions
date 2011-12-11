@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 using GitCommands;
 using GitCommands.Repository;
@@ -61,7 +62,7 @@ namespace GitUI
 
         private List<GitHead> _heads;
         public bool ErrorOccurred { get; private set; }
-        private string branch;
+        private readonly string branch;
 
         public FormPull()
         {
@@ -94,10 +95,9 @@ namespace GitUI
         }
         public DialogResult PullAndShowDialogWhenFailed(IWin32Window owner)
         {
-            if (PullChanges())
-                return DialogResult.OK;
-            else
-                return ShowDialog(owner);
+            return PullChanges()
+                ? DialogResult.OK
+                : ShowDialog(owner);
         }
 
         private void BrowseSourceClick(object sender, EventArgs e)
@@ -145,15 +145,10 @@ namespace GitUI
                     // It only returns the heads that are already known to the repository. This
                     // doesn't return heads that are new on the server. This can be updated using
                     // update branch info in the manage remotes dialog.
-                    _heads = new List<GitHead>();
-                    foreach (var head in Settings.Module.GetHeads(true, true))
-                    {
-                        if (!head.IsRemote ||
-                            !head.Name.StartsWith(_NO_TRANSLATE_Remotes.Text, StringComparison.CurrentCultureIgnoreCase))
-                            continue;
-
-                        _heads.Insert(0, head);
-                    }
+                    _heads = Settings.Module.GetHeads(true, true)
+                        .Where(head => head.IsRemote && head.Name.StartsWith(_NO_TRANSLATE_Remotes.Text, StringComparison.CurrentCultureIgnoreCase))
+                        .OrderBy(head => head.Name)
+                        .ToList();
                 }
             }
             Branches.DisplayMember = "LocalName";
@@ -231,7 +226,7 @@ namespace GitUI
                         Close();
                         return false;
                     }
-                    else if (dr != DialogResult.Yes)
+                    if (dr != DialogResult.Yes)
                         return false;
                 }
             }
@@ -344,11 +339,11 @@ namespace GitUI
             return false;
         }
 
-        private bool IsSubmodulesIntialized()
+        private static bool IsSubmodulesIntialized()
         {
             // Fast submodules check
             var submodules = Settings.Module.GetSubmodulesNames();
-            GitModule submodule = new GitModule();
+            var submodule = new GitModule();
             foreach (var submoduleName in submodules)
             {
                 submodule.WorkingDir = Settings.Module.WorkingDir + submoduleName + Settings.PathSeparator;
@@ -374,11 +369,6 @@ namespace GitUI
             _NO_TRANSLATE_Remotes.Select();
 
             Text = string.Format("Pull ({0})", Settings.WorkingDir);
-        }
-
-        protected override void OnShown(EventArgs e)
-        {
-            base.OnShown(e);
         }
 
         private void PullSourceDropDown(object sender, EventArgs e)
