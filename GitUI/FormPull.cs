@@ -179,22 +179,8 @@ namespace GitUI
 
         private bool PullChanges()
         {
-            if (PullFromUrl.Checked && string.IsNullOrEmpty(PullSource.Text))
-            {
-                MessageBox.Show(this, _selectSourceDirectory.Text);
+            if (!CheckPullConditions())
                 return false;
-            }
-            if (PullFromRemote.Checked && string.IsNullOrEmpty(_NO_TRANSLATE_Remotes.Text) && !PullAll())
-            {
-                MessageBox.Show(this, _selectRemoteRepository.Text);
-                return false;
-            }
-
-            if (!Fetch.Checked && Branches.Text == "*")
-            {
-                MessageBox.Show(this, _fetchAllBranchesCanOnlyWithFetch.Text);
-                return false;
-            }
 
             if (Merge.Checked)
                 Settings.PullMerge = "merge";
@@ -205,33 +191,6 @@ namespace GitUI
 
             Settings.AutoStash = AutoStash.Checked;
             Settings.PreserveMergesOnRebase = chkPreserveMerges.Checked;
-
-            //ask only if exists commit not pushed to remote yet
-            if (Rebase.Checked && PullFromRemote.Checked)
-            {
-
-                string branchRemote = _NO_TRANSLATE_Remotes.Text;
-                string remoteBranchName;
-                if (Branches.Text.IsNullOrEmpty())
-                {
-                    remoteBranchName = Settings.Module.GetSetting("branch." + branch + ".merge");
-                    remoteBranchName = Settings.Module.RunGitCmd("name-rev --name-only \"" + remoteBranchName + "\"").Trim();
-                }
-                else
-                    remoteBranchName = Branches.Text;
-                remoteBranchName = branchRemote + "/" + remoteBranchName;
-                if (Settings.Module.ExistsMergeCommit(remoteBranchName, branch))
-                {
-                    DialogResult dr = MessageBox.Show(this, _areYouSureYouWantToRebaseMerge.Text, _areYouSureYouWantToRebaseMergeCaption.Text, MessageBoxButtons.YesNoCancel);
-                    if (dr == DialogResult.Cancel)
-                    {
-                        Close();
-                        return false;
-                    }
-                    if (dr != DialogResult.Yes)
-                        return false;
-                }
-            }
 
             Repositories.RepositoryHistory.AddMostRecentRepository(PullSource.Text);
 
@@ -339,6 +298,54 @@ namespace GitUI
             }
 
             return false;
+        }
+
+        private bool CheckPullConditions()
+        {
+            if (PullFromUrl.Checked && string.IsNullOrEmpty(PullSource.Text))
+            {
+                MessageBox.Show(this, _selectSourceDirectory.Text);
+                return false;
+            }
+            if (PullFromRemote.Checked && string.IsNullOrEmpty(_NO_TRANSLATE_Remotes.Text) && !PullAll())
+            {
+                MessageBox.Show(this, _selectRemoteRepository.Text);
+                return false;
+            }
+
+            if (!Fetch.Checked && Branches.Text == "*")
+            {
+                MessageBox.Show(this, _fetchAllBranchesCanOnlyWithFetch.Text);
+                return false;
+            }
+
+            //ask only if exists commit not pushed to remote yet
+            if (Rebase.Checked && PullFromRemote.Checked)
+            {
+                string branchRemote = _NO_TRANSLATE_Remotes.Text;
+                string remoteBranchName;
+                if (Branches.Text.IsNullOrEmpty())
+                {
+                    remoteBranchName = Settings.Module.GetSetting("branch." + branch + ".merge");
+                    remoteBranchName = Settings.Module.RunGitCmd("name-rev --name-only \"" + remoteBranchName + "\"").Trim();
+                }
+                else
+                    remoteBranchName = Branches.Text;
+                remoteBranchName = branchRemote + "/" + remoteBranchName;
+                if (Settings.Module.ExistsMergeCommit(remoteBranchName, branch))
+                {
+                    DialogResult dr = MessageBox.Show(this, _areYouSureYouWantToRebaseMerge.Text, _areYouSureYouWantToRebaseMergeCaption.Text, MessageBoxButtons.YesNoCancel);
+                    if (dr == DialogResult.Cancel)
+                    {
+                        Close();
+                        return false;
+                    }
+                    if (dr != DialogResult.Yes)
+                        return false;
+                }
+            }
+
+            return true;
         }
 
         private static bool IsSubmodulesIntialized()
