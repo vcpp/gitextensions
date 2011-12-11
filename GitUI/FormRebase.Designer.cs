@@ -244,6 +244,8 @@
             // chkPreserveMerges
             // 
             this.chkPreserveMerges.AutoSize = true;
+            this.chkPreserveMerges.Checked = true;
+            this.chkPreserveMerges.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chkPreserveMerges.Location = new System.Drawing.Point(162, 3);
             this.chkPreserveMerges.Name = "chkPreserveMerges";
             this.chkPreserveMerges.Size = new System.Drawing.Size(107, 17);
