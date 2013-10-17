@@ -1,15 +1,19 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Text;
+using System.Xml.Serialization;
 
 namespace ResourceManager.Translation
 {
+    /// <summary>Provides a translation for a specific language.</summary>
     public class Translation
     {
         public Translation()
         {
             translationCategories = new List<TranslationCategory>();
         }
+
+        [XmlAttribute("GitExVersion")]
+        public string GitExVersion { get; set; }
 
         public string LanguageCode { get; set; }
 
@@ -67,16 +71,7 @@ namespace ResourceManager.Translation
             if (tc == null)
                 return defaultValue;
             TranslationItem ti = tc.GetTranslationItem(item, property);
-            return ti == null ? defaultValue : ti.Value;
-        }
-
-        public void ClearSource()
-        {
-            foreach (var translationCategory in translationCategories)
-            {
-                foreach (var translationItem in translationCategory.GetTranslationItems())
-                    translationItem.Source = null;
-            }
+            return ti == null || string.IsNullOrEmpty(ti.Value) ? defaultValue : ti.Value;
         }
     }
 }

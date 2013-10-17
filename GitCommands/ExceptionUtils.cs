@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+using System.Collections;
 using System.Text;
 using System.Threading;
 using System.Windows.Forms;
-using System.Collections;
 
 namespace GitCommands
 {
@@ -28,8 +26,13 @@ namespace GitCommands
 
         public static void ShowException(Exception e, string info, bool canIgnore)
         {
+            ShowException(null, e, info, canIgnore);
+        }
+
+        public static void ShowException(IWin32Window owner, Exception e, string info, bool canIgnore)
+        {
             if (!(canIgnore && IsIgnorable(e)))
-                MessageBox.Show(info.Join(Environment.NewLine + Environment.NewLine, e.ToStringWithData()));            
+                MessageBox.Show(owner, string.Join(Environment.NewLine + Environment.NewLine, info, e.ToStringWithData()), "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
 
         public static bool IsIgnorable(Exception e)

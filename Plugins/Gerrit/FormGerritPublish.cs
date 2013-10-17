@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using GitCommands;
 using GitUIPluginInterfaces;
@@ -11,11 +10,10 @@ namespace Gerrit
 {
     public partial class FormGerritPublish : FormGerritBase
     {
-        private readonly IGitUICommands _uiCommand;
         private string _currentBranchRemote;
 
         #region Translation
-        private readonly TranslationString _downloadGerritChangeCaption = new TranslationString("Download Gerrit Change");
+        private readonly TranslationString _publishGerritChangeCaption = new TranslationString("Publish Gerrit Change");
 
         private readonly TranslationString _publishCaption = new TranslationString("Publish change");
 
@@ -24,9 +22,8 @@ namespace Gerrit
         #endregion
 
         public FormGerritPublish(IGitUICommands uiCommand)
+            : base(uiCommand)
         {
-            _uiCommand = uiCommand;
-
             InitializeComponent();
             Translate();
         }
@@ -52,11 +49,11 @@ namespace Gerrit
                 return false;
             }
 
-            StartAgent(owner, _NO_TRANSLATE_Remotes.Text);
+            GerritUtil.StartAgent(owner, Module, _NO_TRANSLATE_Remotes.Text);
 
             string targetRef = PublishDraft.Checked ? "drafts" : "publish";
 
-            var pushCommand = _uiCommand.CreateRemoteCommand();
+            var pushCommand = UICommands.CreateRemoteCommand();
 
             string targetBranch = "refs/" + targetRef + "/" + branch;
             string topic = _NO_TRANSLATE_Topic.Text.Trim();
@@ -79,7 +76,7 @@ namespace Gerrit
                 bool hadNewChanges = false;
                 string change = null;
 
-                foreach (string line in pushCommand.CommandText.Split('\n'))
+                foreach (string line in pushCommand.CommandOutput.Split('\n'))
                 {
                     if (hadNewChanges)
                     {
@@ -121,14 +118,22 @@ namespace Gerrit
             string[] branchParts = branchName.Split('/');
 
             if (branchParts.Length >= 3 && branchParts[0] == "review")
-                return String.Join("/", branchParts.Skip(2).ToArray());
+            {
+                branchName = String.Join("/", branchParts.Skip(2));
+
+                // Don't use the Gerrit change number as a topic branch.
+
+                int unused;
+                if (int.TryParse(branchName, out unused))
+                    branchName = null;
+            }
 
             return branchName;
         }
 
         private string GetBranchName(string targetBranch)
         {
-            string branch = GitCommands.Settings.Module.GetSelectedBranch();
+            string branch = Module.GetSelectedBranch();
 
             if (branch.StartsWith("(no"))
                 return targetBranch;
@@ -138,9 +143,7 @@ namespace Gerrit
 
         private void FormGerritPublishLoad(object sender, EventArgs e)
         {
-            RestorePosition("public-gerrit-change");
-
-            _NO_TRANSLATE_Remotes.DataSource = GitCommands.Settings.Module.GetRemotes();
+            _NO_TRANSLATE_Remotes.DataSource = Module.GetRemotes(true);
 
             _currentBranchRemote = Settings.DefaultRemote;
 
@@ -158,18 +161,13 @@ namespace Gerrit
 
             _NO_TRANSLATE_Branch.Select();
 
-            Text = string.Concat(_downloadGerritChangeCaption.Text, " (", GitCommands.Settings.WorkingDir, ")");
+            Text = string.Concat(_publishGerritChangeCaption.Text, " (", Module.GitWorkingDir, ")");
         }
 
         private void AddRemoteClick(object sender, EventArgs e)
         {
-            _uiCommand.StartRemotesDialog();
-            _NO_TRANSLATE_Remotes.DataSource = GitCommands.Settings.Module.GetRemotes();
-        }
-
-        private void FormGerritPublish_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            SavePosition("public-gerrit-change");
+            UICommands.StartRemotesDialog();
+            _NO_TRANSLATE_Remotes.DataSource = Module.GetRemotes(true);
         }
     }
 }

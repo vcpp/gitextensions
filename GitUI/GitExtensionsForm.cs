@@ -10,24 +10,39 @@ using GitUI.Properties;
 using Microsoft.WindowsAPICodePack.Taskbar;
 #endif
 using ResourceManager.Translation;
-using Settings = GitCommands.Settings;
+using Settings = GitCommands.AppSettings;
 using System.Collections.Generic;
 
 namespace GitUI
 {
+    /// <summary>Base class for a Git Extensions <see cref="Form"/>.
+    /// <remarks>
+    /// Includes support for font, hotkey, icon, translation, and position restore.
+    /// </remarks></summary>
     public class GitExtensionsForm : Form, ITranslate
     {
-        private static Icon ApplicationIcon = GetApplicationIcon(Settings.IconStyle, Settings.IconColor);
+        internal static Icon ApplicationIcon = GetApplicationIcon(Settings.IconStyle, Settings.IconColor);
 
-        private bool _translated;
+        /// <summary>indicates whether the <see cref="Form"/> has been translated</summary>
+        bool _translated;
+        /// <summary>indicates whether the <see cref="Form"/>'s position will be restored</summary>
+        bool _enablePositionRestore;
 
+        /// <summary>Creates a new <see cref="GitExtensionsForm"/> without position restore.</summary>
         public GitExtensionsForm()
+            : this(false) { }
+
+        /// <summary>Creates a new <see cref="GitExtensionsForm"/> indicating position restore.</summary>
+        /// <param name="enablePositionRestore">Indicates whether the <see cref="Form"/>'s position
+        /// will be restored upon being re-opened.</param>
+        public GitExtensionsForm(bool enablePositionRestore)
         {
+            _enablePositionRestore = enablePositionRestore;
+
             Icon = ApplicationIcon;
             SetFont();
 
             ShowInTaskbar = Application.OpenForms.Count <= 0 || (Application.OpenForms.Count == 1 && Application.OpenForms[0] is FormSplash);
-            AutoScaleMode = AutoScaleMode.None;
 
             var cancelButton = new Button();
             cancelButton.Click += CancelButtonClick;
@@ -40,8 +55,11 @@ namespace GitUI
 
         void GitExtensionsForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            if (_enablePositionRestore)
+                SavePosition(GetType().Name);
+
 #if !__MonoCS__
-            if (TaskbarManager.IsPlatformSupported)
+            if (GitCommands.Utils.EnvUtils.RunningOnWindows() && TaskbarManager.IsPlatformSupported)
             {
                 try
                 {
@@ -63,8 +81,8 @@ namespace GitUI
         /// <summary>Overridden: Checks if a hotkey wants to handle the key before letting the message propagate</summary>
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            if (HotkeysEnabled && this.Hotkeys != null)
-                foreach (var hotkey in this.Hotkeys)
+            if (HotkeysEnabled && Hotkeys != null)
+                foreach (var hotkey in Hotkeys)
                 {
                     if (hotkey != null && hotkey.KeyData == keyData)
                     {
@@ -75,33 +93,31 @@ namespace GitUI
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
-        /// <summary>
-        /// Override this method to handle form specific Hotkey commands
-        /// This base method calls script-hotkeys
-        /// </summary>
-        /// <param name="command"></param>
+        protected Keys GetShortcutKeys(int commandCode)
+        {
+            var hotkey = GetHotkeyCommand(commandCode);
+            return hotkey == null ? Keys.None : hotkey.KeyData;
+        }
+
+        protected Hotkey.HotkeyCommand GetHotkeyCommand(int commandCode)
+        {
+            if (Hotkeys == null)
+                return null;
+
+            return Hotkeys.FirstOrDefault(h => h.CommandCode == commandCode);
+        }
+
+        /// <summary>Override this method to handle form-specific Hotkey commands.</summary>
         protected virtual bool ExecuteCommand(int command)
         {
-            ExecuteScriptCommand(command, Keys.None);
-            return true;
-        }
-        protected virtual bool ExecuteScriptCommand(int command, Keys keyData)
-        {
-            var curScripts = GitUI.Script.ScriptManager.GetScripts();
-
-            foreach (GitUI.Script.ScriptInfo s in curScripts)
-            {
-                if (s.HotkeyCommandIdentifier == command)
-                    GitUI.Script.ScriptRunner.RunScript(s.Name, null);
-            }
-            return true;
+            return false;
         }
 
         #endregion
 
         private void SetFont()
         {
-            Font = SystemFonts.MessageBoxFont;
+            Font = Settings.Font;
         }
 
         #region icon
@@ -111,7 +127,8 @@ namespace GitUI
             ApplicationIcon = GetApplicationIcon(Settings.IconStyle, Settings.IconColor);
             Icon = ApplicationIcon;
         }
-        
+
+        /// <summary>Specifies a Git Extensions' color index.</summary>
         protected enum ColorIndex
         {
             Default,
@@ -148,13 +165,13 @@ namespace GitUI
             return ColorIndex.Unknown;
         }
 
-        protected static Icon GetApplicationIcon(string iconStyle, string iconColor)
+        public static Icon GetApplicationIcon(string iconStyle, string iconColor)
         {
             var colorIndex = (int)GetColorIndexByName(iconColor);
             if (colorIndex == (int) ColorIndex.Unknown)
                 colorIndex = 0;
 
-            Icon appIcon = null;
+            Icon appIcon;
             if (iconStyle.Equals("small", StringComparison.OrdinalIgnoreCase))
             {
                 Icon[] icons = {
@@ -214,9 +231,11 @@ namespace GitUI
             Debug.Assert(appIcon != null);
             return appIcon;
         }
-        #endregion
 
-        private static bool CheckComponent(object value)
+        #endregion icon
+
+        /// <summary>Indicates whether this is a valid <see cref="IComponent"/> running in design mode.</summary>
+        static bool CheckComponent(object value)
         {
             var component = value as IComponent;
             if (component == null)
@@ -226,13 +245,25 @@ namespace GitUI
             return (site != null) && site.DesignMode;
         }
 
+        /// <summary>Invoked at runtime during the <see cref="OnLoad"/> method.</summary>
         protected virtual void OnRuntimeLoad(EventArgs e)
-        { 
-        
+        {
+
         }
 
+        /// <summary>Sets <see cref="AutoScaleMode"/>, 
+        /// restores position, raises the <see cref="Form.Load"/> event,
+        /// and .
+        /// </summary>
         protected override void OnLoad(EventArgs e)
         {
+            AutoScaleMode = Settings.EnableAutoScale
+                ? AutoScaleMode.Dpi
+                : AutoScaleMode.None;
+
+            if (_enablePositionRestore)
+                RestorePosition(GetType().Name);
+
             base.OnLoad(e);
 
             if (!CheckComponent(this))
@@ -249,9 +280,10 @@ namespace GitUI
                                     " is not translated in the constructor. You need to call Translate() right after InitializeComponent().");
         }
 
+        /// <summary>Translates the <see cref="Form"/>'s fields and properties, including child controls.</summary>
         protected void Translate()
         {
-            Translator.Translate(this, Settings.Translation);
+            Translator.Translate(this, Settings.CurrentTranslation);
             _translated = true;
         }
 
@@ -269,9 +301,9 @@ namespace GitUI
         /// </summary>
         /// <param name = "name">The name to use when looking up the position in
         ///   the settings</param>
-        protected void RestorePosition(String name)
+        private void RestorePosition(String name)
         {
-            if (!this.Visible || 
+            if (!Visible ||
                 WindowState == FormWindowState.Minimized)
                 return;
 
@@ -283,16 +315,49 @@ namespace GitUI
                 return;
 
             StartPosition = FormStartPosition.Manual;
-            Size = position.Rect.Size;
+            if (FormBorderStyle == FormBorderStyle.Sizable ||
+                FormBorderStyle == FormBorderStyle.SizableToolWindow)
+                Size = position.Rect.Size;
             if (Owner == null || !_windowCentred)
-                Location = position.Rect.Location;
+            {
+                Point location = position.Rect.Location;
+                Rectangle? rect = FindWindowScreen(location);
+                if (rect != null)
+                    location.Y = rect.Value.Y;
+                DesktopLocation = location;
+            }
             else
             {
                 // Calculate location for modal form with parent
-                Location = new Point(Owner.Left + Owner.Width / 2 - Width / 2, 
-                    Owner.Top + Owner.Height / 2 - Height / 2);
+                Location = new Point(Owner.Left + Owner.Width / 2 - Width / 2,
+                    Math.Max(0, Owner.Top + Owner.Height / 2 - Height / 2));
             }
             WindowState = position.State;
+        }
+
+        static Rectangle? FindWindowScreen(Point location)
+        {
+            SortedDictionary<float, Rectangle> distance = new SortedDictionary<float, Rectangle>();
+            foreach (var rect in (from screen in Screen.AllScreens
+                                  select screen.WorkingArea))
+            {
+                if (rect.Contains(location) && !distance.ContainsKey(0.0f))
+                    return null; // title in screen
+
+                int midPointX = (rect.X + rect.Width / 2);
+                int midPointY = (rect.Y + rect.Height / 2);
+                float d = (float)Math.Sqrt((location.X - midPointX) * (location.X - midPointX) +
+                    (location.Y - midPointY) * (location.Y - midPointY));
+                distance.Add(d, rect);
+            }
+            if (distance.Count > 0)
+            {
+                return distance.First().Value;
+            }
+            else
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -301,7 +366,7 @@ namespace GitUI
         /// </summary>
         /// <param name = "name">The name to use when writing the position to the
         ///   settings</param>
-        protected void SavePosition(String name)
+        private void SavePosition(String name)
         {
             try
             {
@@ -372,16 +437,12 @@ namespace GitUI
 
         public virtual void AddTranslationItems(Translation translation)
         {
-            if (!string.IsNullOrEmpty(Text))
-                translation.AddTranslationItem(Name, "$this", "Text", Text);
             TranslationUtl.AddTranslationItemsFromFields(Name, this, translation);
         }
 
         public virtual void TranslateItems(Translation translation)
         {
-            Text = translation.TranslateItem(Name, "$this", "Text", Text);
             TranslationUtl.TranslateItemsFromFields(Name, this, translation);
         }
-
     }
 }

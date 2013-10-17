@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-
+﻿
 namespace GitUI.Script
 {
     public enum ScriptEvent
@@ -40,6 +36,8 @@ namespace GitUI.Script
         public ScriptEvent OnEvent { get; set; }
 
         public bool AskConfirmation { get; set; }
+
+        public bool RunInBackground { get; set; }
 
         public int HotkeyCommandIdentifier { get; set; }
         /// <summary>

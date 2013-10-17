@@ -9,13 +9,13 @@ namespace Gource
 {
     public partial class GourceStart : Form
     {
-        public GourceStart(string pathToGource, GitUIBaseEventArgs gitUiCommands, string gourceArguments)
+        public GourceStart(string pathToGource, GitUIBaseEventArgs gitUIArgs, string gourceArguments)
         {
             InitializeComponent();
             PathToGource = pathToGource;
-            GitUIArgs = gitUiCommands;
-            GitWorkingDir = gitUiCommands.GitWorkingDir;
-            AvatarsDir = gitUiCommands.GravatarCacheDir;
+            GitUIArgs = gitUIArgs;
+            GitWorkingDir = gitUIArgs.GitModule.GitWorkingDir;
+            AvatarsDir = gitUIArgs.GitModule.GravatarCacheDir;
             GourceArguments = gourceArguments;
 
             WorkingDir.Text = GitWorkingDir;
@@ -37,22 +37,12 @@ namespace Gource
         {
             try
             {
-                new Process
-                    {
-                        StartInfo =
-                            {
-                                UseShellExecute = true,
-                                ErrorDialog = false,
-                                RedirectStandardOutput = false,
-                                RedirectStandardInput = false,
-                                CreateNoWindow = false,
-                                FileName = "\"" + cmd + "\"",
-                                Arguments = arguments,
-                                WorkingDirectory = WorkingDir.Text,
-                                WindowStyle = ProcessWindowStyle.Normal,
-                                LoadUserProfile = true
-                            }
-                    }.Start();
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "\"" + cmd + "\"",
+                    Arguments = arguments,
+                    WorkingDirectory = WorkingDir.Text
+                });
             }
             catch (Exception e)
             {
@@ -86,7 +76,7 @@ namespace Gource
             Directory.CreateDirectory(gourceAvatarsDir);
             foreach (var file in Directory.GetFiles(gourceAvatarsDir))
                 File.Delete(file);
-            var lines = GitUIArgs.GitCommands.RunGit("log --pretty=format:\"%aE|%aN\"").Split('\n');
+            var lines = GitUIArgs.GitModule.RunGitCmd("log --pretty=format:\"%aE|%aN\"").Split('\n');
             HashSet<string> authors = new HashSet<string>();
             foreach (var line in lines)
             {
@@ -115,22 +105,26 @@ namespace Gource
 
         private void GourceBrowseClick(object sender, EventArgs e)
         {
-            var fileDialog =
+            using (var fileDialog =
                 new OpenFileDialog
                     {
                         Filter = "Gource (gource.exe)|gource.exe",
                         FileName = GourcePath.Text
-                    };
-            fileDialog.ShowDialog(this);
+                    })
+            {
+                fileDialog.ShowDialog(this);
 
-            GourcePath.Text = fileDialog.FileName;
+                GourcePath.Text = fileDialog.FileName;
+            }
         }
 
         private void WorkingDirBrowseClick(object sender, EventArgs e)
         {
-            var folderDialog = new FolderBrowserDialog {SelectedPath = WorkingDir.Text};
-            folderDialog.ShowDialog(this);
-            WorkingDir.Text = folderDialog.SelectedPath;
+            using (var folderDialog = new FolderBrowserDialog { SelectedPath = WorkingDir.Text })
+            {
+                folderDialog.ShowDialog(this);
+                WorkingDir.Text = folderDialog.SelectedPath;
+            }
         }
 
         private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)

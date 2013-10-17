@@ -4,11 +4,12 @@ using System.IO;
 using System.Windows.Forms;
 using GitCommands;
 using GitUI;
+using GitUIPluginInterfaces;
 using ResourceManager.Translation;
 
 namespace Gerrit
 {
-    public sealed partial class FormGitReview : GitExtensionsForm
+    public sealed partial class FormGitReview : GitExtensionsForm, IGitUICommandsSource
     {
         private readonly TranslationString _gitreviewOnlyInWorkingDirSupported =
             new TranslationString(".gitreview is only supported when there is a working dir.");
@@ -26,22 +27,49 @@ namespace Gerrit
             new TranslationString("Save changes?");
 
         private string _originalGitReviewFileContent = string.Empty;
+        private IGitModule Module { get { return UICommands.GitModule; } }
 
-        public FormGitReview()
+        public event GitUICommandsChangedEventHandler GitUICommandsChanged;
+
+        private void OnGitUICommandsChanged(GitUICommands oldcommands)
+        {
+            GitUICommandsChangedEventHandler handler = GitUICommandsChanged;
+            if (handler != null)
+                handler(this, oldcommands);
+        }
+
+        private GitUICommands _uiCommands;
+        public GitUICommands UICommands
+        {
+            get { return _uiCommands; }
+            set
+            {
+                var oldcommands = _uiCommands;
+                _uiCommands = value;
+                OnGitUICommandsChanged(oldcommands);
+            }
+        }
+
+        public FormGitReview(IGitUICommands aUICommands)
+            : base(true)
         {
             InitializeComponent();
             Translate();
 
-            LoadGitReview();
-            _NO_TRANSLATE_GitReviewEdit.TextLoaded += GitReviewFileLoaded;
+            UICommands = (GitUICommands)aUICommands;
+            if (UICommands != null)
+            {
+                LoadGitReview();
+                _NO_TRANSLATE_GitReviewEdit.TextLoaded += GitReviewFileLoaded;
+            }
         }
 
         private void LoadGitReview()
         {
             try
             {
-                if (File.Exists(Settings.WorkingDir + ".gitreview"))
-                    _NO_TRANSLATE_GitReviewEdit.ViewFile(Settings.WorkingDir + ".gitreview");
+                if (File.Exists(Module.GitWorkingDir + ".gitreview"))
+                    _NO_TRANSLATE_GitReviewEdit.ViewFile(Module.GitWorkingDir + ".gitreview");
             }
             catch (Exception ex)
             {
@@ -63,13 +91,13 @@ namespace Gerrit
             {
                 FileInfoExtensions
                     .MakeFileTemporaryWritable(
-                        Settings.WorkingDir + ".gitreview",
+                        Module.GitWorkingDir + ".gitreview",
                         x =>
                         {
                             var fileContent = _NO_TRANSLATE_GitReviewEdit.GetText();
                             if (!fileContent.EndsWith(Environment.NewLine))
                                 fileContent += Environment.NewLine;
-                            File.WriteAllBytes(x, Settings.SystemEncoding.GetBytes(fileContent));
+                            File.WriteAllBytes(x, GitModule.SystemEncoding.GetBytes(fileContent));
                             _originalGitReviewFileContent = fileContent;
                         });
                 return true;
@@ -101,14 +129,11 @@ namespace Gerrit
                         return;
                 }
             }
-
-            SavePosition("edit-git-review");
         }
 
         private void FormGitIgnoreLoad(object sender, EventArgs e)
         {
-            RestorePosition("edit-git-review");
-            if (!Settings.Module.IsBareRepository())
+            if (!Module.IsBareRepository())
                 return;
             MessageBox.Show(this, _gitreviewOnlyInWorkingDirSupported.Text, _gitreviewOnlyInWorkingDirSupportedCaption.Text);
             Close();
@@ -126,7 +151,7 @@ namespace Gerrit
 
         private void lnkGitReviewPatterns_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            Process.Start(@"http://github.com/openstack-ci/git-review#git-review");
+            Process.Start(@"http://github.com/openstack-infra/git-review#git-review");
         }
     }
 }

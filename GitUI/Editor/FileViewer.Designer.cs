@@ -13,6 +13,8 @@
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
+            GitUICommandsSourceSet -= FileViewer_GitUICommandsSourceSet;
+
             if (disposing && (components != null))
             {
                 components.Dispose();
@@ -75,7 +77,7 @@
             this.showNonprintableCharactersToolStripMenuItem,
             this.goToLineToolStripMenuItem});
             this.contextMenu.Name = "ContextMenu";
-            this.contextMenu.Size = new System.Drawing.Size(244, 258);
+            this.contextMenu.Size = new System.Drawing.Size(244, 236);
             // 
             // copyToolStripMenuItem
             // 
@@ -176,7 +178,7 @@
             this.ignoreWhiteSpaces,
             this.encodingToolStripComboBox});
             this.fileviewerToolbar.LayoutStyle = System.Windows.Forms.ToolStripLayoutStyle.Flow;
-            this.fileviewerToolbar.Location = new System.Drawing.Point(413, 0);
+            this.fileviewerToolbar.Location = new System.Drawing.Point(535, 0);
             this.fileviewerToolbar.Name = "fileviewerToolbar";
             this.fileviewerToolbar.Size = new System.Drawing.Size(316, 23);
             this.fileviewerToolbar.TabIndex = 4;
@@ -275,6 +277,7 @@
             this.PictureBox.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Center;
             this.PictureBox.Dock = System.Windows.Forms.DockStyle.Fill;
             this.PictureBox.Location = new System.Drawing.Point(0, 0);
+            this.PictureBox.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.PictureBox.Name = "PictureBox";
             this.PictureBox.Size = new System.Drawing.Size(757, 518);
             this.PictureBox.SizeMode = System.Windows.Forms.PictureBoxSizeMode.StretchImage;
@@ -284,10 +287,10 @@
             // 
             // FileViewer
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Inherit;
             this.Controls.Add(this.PictureBox);
             this.Controls.Add(this.fileviewerToolbar);
+            this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.Name = "FileViewer";
             this.Size = new System.Drawing.Size(757, 518);
             this.contextMenu.ResumeLayout(false);

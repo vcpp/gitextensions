@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using System.IO;
-using System.Xml.Serialization;
+﻿using System.IO;
 using System.Xml;
+using System.Xml.Serialization;
 
 namespace ResourceManager.Translation
 {
+    /// <summary>Serializes and deserialize a <see cref="Translation"/>.</summary>
     public static class TranslationSerializer
     {
         public static void Serialize(Translation translation, string path)
@@ -24,11 +22,20 @@ namespace ResourceManager.Translation
                 return null;
 
             XmlSerializer serializer = new XmlSerializer(typeof(Translation));
-            using (TextReader stringReader = new StreamReader(path))
-            using (XmlTextReader xmlReader = new XmlTextReader(stringReader))
+            TextReader stringReader = null;
+            try
             {
-                return (Translation)serializer.Deserialize(xmlReader);
-
+                stringReader = new StreamReader(path);
+                using (XmlTextReader xmlReader = new XmlTextReader(stringReader))
+                {
+                    stringReader = null;
+                    return (Translation)serializer.Deserialize(xmlReader);
+                }
+            }
+            finally
+            {
+                if (stringReader != null)
+                    stringReader.Dispose();
             }
         }
     }

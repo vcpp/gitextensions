@@ -10,14 +10,21 @@ namespace DeleteUnusedBranches
     {
         private readonly SortableBranchesList branches = new SortableBranchesList();
         private readonly int days;
-        private readonly IGitCommands gitCommands;
+		private readonly string referenceBranch;
+        private readonly IGitModule gitCommands;
+        private readonly IGitUICommands _gitUICommands;
+        private readonly IGitPlugin _gitPlugin;
 
-        public DeleteUnusedBranchesForm(int days, IGitCommands gitCommands)
+        public DeleteUnusedBranchesForm(int days, string referenceBranch, IGitModule gitCommands, IGitUICommands gitUICommands, IGitPlugin gitPlugin)
         {
             InitializeComponent();
 
+			this.referenceBranch = referenceBranch;
             this.days = days;
             this.gitCommands = gitCommands;
+            _gitUICommands = gitUICommands;
+            _gitPlugin = gitPlugin;
+            instructionLabel.Text = "Choose branches to delete. Only branches that are fully merged in '" + referenceBranch + "' will be deleted.";
         }
 
         protected override void OnLoad(EventArgs e)
@@ -33,7 +40,7 @@ namespace DeleteUnusedBranches
             foreach (string branchName in GetObsoleteBranchNames())
             {
                 DateTime date = new DateTime();
-                foreach (string dateString in gitCommands.RunGit(string.Concat("log --pretty=%ci ", branchName, "^1..", branchName)).Split('\n'))
+                foreach (string dateString in gitCommands.RunGitCmd(string.Concat("log --pretty=%ci ", branchName, "^1..", branchName)).Split('\n'))
                 {
                     DateTime singleDate;
                     if (DateTime.TryParse(dateString, out singleDate))
@@ -46,25 +53,33 @@ namespace DeleteUnusedBranches
         }
 
         private IEnumerable<string> GetObsoleteBranchNames()
-        {
-            // TODO: skip current branch    
-            return gitCommands.RunGit("branch --merged")
+        {			
+            // TODO: skip current branch
+			return gitCommands.RunGitCmd("branch --merged " + referenceBranch)
                 .Split('\n')
                 .Where(branchName => !string.IsNullOrEmpty(branchName))
                 .Select(branchName => branchName.Trim('*', ' ', '\n', '\r'))
-                .Where(branchName => branchName != "master");
+                .Where(branchName => branchName != "HEAD" && 
+									 branchName != referenceBranch);
         }
 
         private void Delete_Click(object sender, EventArgs e)
         {
-            if (MessageBox.Show(this, "Are you sure to delete the selected branches?" + Environment.NewLine + "Only branches that are fully merged will be deleted.", "Delete", MessageBoxButtons.YesNo) == DialogResult.Yes)
+            if (MessageBox.Show(this, "Are you sure to delete the selected branches?" + Environment.NewLine + "Only branches that are fully merged in '" + referenceBranch + "' will be deleted.", "Delete", MessageBoxButtons.YesNo) == DialogResult.Yes)
             {
                 foreach (Branch branch in branches.Where(branch => branch.Delete))
                 {
-                    branch.Result = gitCommands.RunGit("branch -d " + branch.Name).Trim();
+                    branch.Result = gitCommands.RunGitCmd("branch -d " + branch.Name).Trim();
                 }
                 BranchesGrid.Refresh();
             }
+        }
+
+        private void buttonSettings_Click(object sender, EventArgs e)
+        {
+            Hide();
+            Close();
+            _gitUICommands.StartSettingsDialog(_gitPlugin);
         }
     }
 }

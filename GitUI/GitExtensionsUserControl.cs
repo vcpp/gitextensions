@@ -1,23 +1,30 @@
 ﻿using System;
-using System.Windows.Forms;
-using System.Drawing;
-using System.ComponentModel;
-using ResourceManager;
-using ResourceManager.Translation;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Drawing;
+using System.Windows.Forms;
+using GitCommands;
+using ResourceManager.Translation;
 
 namespace GitUI
 {
+    /// <summary>Provides translation and hotkey plumbing for GitEx <see cref="UserControl"/>s.</summary>
     public class GitExtensionsControl : UserControl, ITranslate
     {
         public GitExtensionsControl()
         {
-            Font = SystemFonts.MessageBoxFont;
+            Font = AppSettings.Font;
 
             Load += GitExtensionsControl_Load;
         }
 
-        private bool translated;
+        [Browsable(false)] // because we always read from settings
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public override Font Font
+        {
+            get { return base.Font; }
+            set { base.Font = value; }
+        }
 
         private static bool CheckComponent(object value)
         {
@@ -33,6 +40,21 @@ namespace GitUI
             return isComponentInDesignMode;
         }
 
+        protected virtual void OnRuntimeLoad(EventArgs e)
+        {
+
+        }
+
+        protected override void OnLoad(EventArgs e)
+        {
+            base.OnLoad(e);
+
+            if (!CheckComponent(this))
+                OnRuntimeLoad(e);
+        }
+
+        private bool translated;
+
         void GitExtensionsControl_Load(object sender, EventArgs e)
         {
             // find out if the value is a component and is currently in design mode
@@ -42,22 +64,20 @@ namespace GitUI
                 throw new Exception("The control " + GetType().Name + " is not translated in the constructor. You need to call Translate() right after InitializeComponent().");
         }
 
+        /// <summary>Translates the <see cref="UserControl"/>'s elements.</summary>
         protected void Translate()
         {
-            Translator.Translate(this, GitCommands.Settings.Translation);
+            Translator.Translate(this, GitCommands.AppSettings.CurrentTranslation);
             translated = true;
         }
 
         public virtual void AddTranslationItems(Translation translation)
         {
-            if (!string.IsNullOrEmpty(Text))
-                translation.AddTranslationItem(Name, "$this", "Text", Text);
             TranslationUtl.AddTranslationItemsFromFields(Name, this, translation);
         }
 
         public virtual void TranslateItems(Translation translation)
         {
-            Text = translation.TranslateItem(Name, "$this", "Text", Text);
             TranslationUtl.TranslateItemsFromFields(Name, this, translation);
         }
 
@@ -69,7 +89,7 @@ namespace GitUI
         /// <summary>Gets or sets the hotkeys</summary>
         protected IEnumerable<Hotkey.HotkeyCommand> Hotkeys { get; set; }
 
-        /// <summary>Overridden: Checks if a hotkey wants to handle the key before letting the message propagate</summary>
+        /// <summary>Checks if a hotkey wants to handle the key before letting the message propagate.</summary>
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
             if (HotkeysEnabled && this.Hotkeys != null)
@@ -85,26 +105,15 @@ namespace GitUI
         }
 
         /// <summary>
-        /// Override this method to handle form specific Hotkey commands
-        /// This base method calls script-hotkeys
+        /// Override this method to handle form-specific Hotkey commands.
+        /// <remarks>This base method does nothing and returns false.</remarks>
         /// </summary>
         /// <param name="command"></param>
         protected virtual bool ExecuteCommand(int command)
         {
-            ExecuteScriptCommand(command, Keys.None);
-            return true;
+            return false;
         }
-        protected virtual bool ExecuteScriptCommand(int command, Keys keyData)
-        {
-            var curScripts = GitUI.Script.ScriptManager.GetScripts();
 
-            foreach (GitUI.Script.ScriptInfo s in curScripts)
-            {
-                if (s.HotkeyCommandIdentifier == command)
-                    GitUI.Script.ScriptRunner.RunScript(s.Name, null);
-            }
-            return true;
-        }
         #endregion
     }
 }

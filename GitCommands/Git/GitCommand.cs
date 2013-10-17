@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 
 namespace GitCommands
 {
@@ -31,11 +29,16 @@ namespace GitCommands
         /// <returns>if command accesses remote repository</returns>
         public abstract bool AccessesRemote();
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns>true if repo state changes after executing this command</returns>
+        public abstract bool ChangesRepoState();
 
         /// <summary>
         /// 
         /// </summary>
-        /// <returns>git command rguments as single line</returns>
+        /// <returns>git command arguments as single line</returns>
         public virtual string ToLine()
         {
             return GitComandName() + " " + CollectArguments().Join(" ");

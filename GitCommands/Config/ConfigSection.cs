@@ -9,10 +9,14 @@ namespace GitCommands.Config
     ///   [section "subsection"] (subsection is case sensitive)
     ///   or
     ///   [section.subsection] (subsection is case insensitive)
+    ///   
+    ///   Case insensitive sections are deprecated. Dot separated subsections are treated
+    ///   as case insensitive only when loaded from config file. Dot separated subsections
+    ///   added from code, are treated as case sensitive.
     /// </summary>
     public class ConfigSection
     {
-        internal ConfigSection(string name)
+        internal ConfigSection(string name, bool forceCaseSensitive)
         {
             Keys = new Dictionary<string, IList<string>>(StringComparer.OrdinalIgnoreCase);
 
@@ -39,34 +43,26 @@ namespace GitCommands.Config
                 SubSection = name.Substring(subSectionIndex + 1).Trim();
                 SubSectionCaseSensitive = false;
             }
+            if (forceCaseSensitive)
+                SubSectionCaseSensitive = true;
         }
 
         internal IDictionary<string, IList<string>> Keys { get; set; }
         public string SectionName { get; set; }
         public string SubSection { get; set; }
         public bool SubSectionCaseSensitive { get; set; }
-        
-        internal static string UnescapeString(string value)
+
+        public static string FixPath(string path)
         {
-            // The .gitconfig escapes some character sequences -> 
-            // \" = "
-            // \\ = \
-            return value.Replace("\\\"", "\"").Replace("\\\\", "\\");
+            if (path.StartsWith("\\\\")) //for using unc paths -> these need to be backward slashes
+                return path;
+
+            return path.Replace('\\', '/');
         }
 
-        internal static string EscapeString(string path)
+        public bool HasValue(string key)
         {
-            // The .gitconfig escapes some character sequences
-            path = path.Replace("\"", "$QUOTE$");
-
-            path = path.Trim();
-
-            if (path.StartsWith("\\\\")) //for using unc paths -> these need to be backward slashes
-                path = path.Replace("\\", "\\\\");
-            else //for directories -> git only supports forward slashes
-                path = path.Replace('\\', '/');
-
-            return path.Replace("$QUOTE$", "\\\"");
+            return Keys.ContainsKey(key);
         }
 
         public void SetValue(string key, string value)
@@ -74,12 +70,12 @@ namespace GitCommands.Config
             if (string.IsNullOrEmpty(value))
                 Keys.Remove(key);
             else
-                Keys[key] = new List<string> {value};
+                Keys[key] = new List<string> { value };
         }
 
         public void SetPathValue(string setting, string value)
         {
-            SetValue(setting, EscapeString(value));
+            SetValue(setting, FixPath(value));
         }
 
         public void AddValue(string key, string value)
@@ -92,12 +88,25 @@ namespace GitCommands.Config
 
         public string GetValue(string key)
         {
-            return Keys.ContainsKey(key) && Keys[key].Count > 0 ? Keys[key][0] : string.Empty;
+            return GetValue(key, string.Empty);
+        }
+
+        public string GetValue(string key, string defaultValue)
+        {
+            IList<string> list;
+
+            if (Keys.TryGetValue(key, out list))
+            {
+                if (list.Count > 0)
+                    return list[0];
+            }
+
+            return defaultValue;
         }
 
         public string GetPathValue(string setting)
         {
-            return UnescapeString(GetValue(setting));
+            return GetValue(setting);
         }
 
         public IList<string> GetValues(string key)
@@ -107,14 +116,18 @@ namespace GitCommands.Config
 
         public override string ToString()
         {
-			string result = "[" + SectionName;
-			if (!SubSection.IsNullOrEmpty())
-				if (SubSectionCaseSensitive)
-					result = result + " \"" + SubSection + "\"";
-			    else
-				    result = result + "." + SubSection;
-			result = result + "]";
-			return result;
+            string result = "[" + SectionName;
+            if (!SubSection.IsNullOrEmpty())
+            {
+                var escSubSection = SubSection.Replace("\"", "\\\"");
+                escSubSection = escSubSection.Replace("\\", "\\\\");
+
+                if (!SubSectionCaseSensitive)
+                    escSubSection = escSubSection.ToLower();
+                result = result + " \"" + escSubSection + "\"";
+            }
+            result = result + "]";
+            return result;
         }
 
         public bool Equals(ConfigSection other)
@@ -128,6 +141,26 @@ namespace GitCommands.Config
             return string.Equals(SectionName, other.SectionName, StringComparison.OrdinalIgnoreCase) && 
                 string.Equals(SubSection, other.SubSection, sc);
         }
+    }
 
+    public static class ConfigSectionExt
+    {
+        public static bool GetValueAsBool(this ConfigSection section, string name, bool defaultValue)
+        {
+            bool result = defaultValue;
+            
+            if (section.HasValue(name))
+            {
+                string value = section.GetValue(name);
+                bool.TryParse(value, out result);
+            }
+
+            return result;
+        }
+
+        public static void SetValueAsBool(this ConfigSection section, string name, bool value)
+        {
+            section.SetValue(name, value.ToString());
+        }
     }
 }

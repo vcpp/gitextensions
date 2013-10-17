@@ -1,32 +1,14 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Windows.Forms;
 using GitCommands;
-using GitCommands.Repository;
-using ResourceManager.Translation;
 
 namespace GitUI
 {
     /// <summary>
     /// Shows a dialog to let the user browse for a SSH key.
     /// </summary>
-    public class BrowseForPrivateKey : Translate
+    public static class BrowseForPrivateKey
     {
-        private static readonly TranslationString _pageantNotFound =
-            new TranslationString("Cannot load SSH key. PuTTY is not configured properly.");
-        private static readonly TranslationString _pageantNotFoundCaption =
-            new TranslationString("PuTTY");
-
-        private static readonly TranslationString _loadKeyFailed =
-            new TranslationString("Could not load key.");
-        private static readonly TranslationString _loadKeyFailedCaption =
-            new TranslationString("PuTTY");
-
-        private static readonly TranslationString _browsePrivateKeyFilter =
-            new TranslationString("Private key");
-        private static readonly TranslationString _browsePrivateKeyCaption =
-            new TranslationString("Select SSH key file");
-
         /// <summary>
         /// Prompts the user to browse for a key, and attempts to load it. Returns the path to the key, if successful.
         /// </summary>
@@ -45,17 +27,19 @@ namespace GitUI
         /// </summary>
         public static string Browse(IWin32Window parent)
         {
-            var dialog = new OpenFileDialog
+            using (var dialog = new OpenFileDialog
+                {
+                    Filter = " (*.ppk)|*.ppk",
+                    InitialDirectory = ".",
+                    Title = "Browse for key"
+                })
             {
-                Filter = " (*.ppk)|*.ppk",
-                InitialDirectory = ".",
-                Title = "Browse for key"
-            };
 
-            if (dialog.ShowDialog(parent) == DialogResult.OK)
-                return dialog.FileName;
+                if (dialog.ShowDialog(parent) == DialogResult.OK)
+                    return dialog.FileName;
 
-            return null;
+                return null;
+            }
         }
 
         /// <summary>
@@ -63,13 +47,13 @@ namespace GitUI
         /// </summary>
         public static bool LoadKey(IWin32Window parent, string path)
         {
-            if (!File.Exists(Settings.Pageant))
+            if (!File.Exists(AppSettings.Pageant))
             {
-                MessageBox.Show(parent, _pageantNotFound.Text, _pageantNotFoundCaption.Text);
+                MessageBoxes.PAgentNotFound(parent);
                 return false;
             }
 
-            Settings.Module.StartPageantWithKey(path);
+            GitModule.StartPageantWithKey(path);
             return true;
         }
     }

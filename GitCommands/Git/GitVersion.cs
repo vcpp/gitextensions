@@ -8,12 +8,13 @@ namespace GitCommands
         private static readonly GitVersion v1_7_0 = new GitVersion("1.7.0");
         private static readonly GitVersion v1_7_1 = new GitVersion("1.7.1");
         private static readonly GitVersion v1_7_7 = new GitVersion("1.7.7");
+        private static readonly GitVersion v1_7_11 = new GitVersion("1.7.11");
 
         public static readonly GitVersion LastSupportedVersion = v1_7_0;
 
         private const string Prefix = "git version";
 
-        private readonly string full;
+        public readonly string Full;
         private readonly int a;
         private readonly int b;
         private readonly int c;
@@ -21,23 +22,13 @@ namespace GitCommands
 
         public GitVersion(string version)
         {
-            full = Fix(version);
+            Full = Fix(version);
 
-            IList<int> numbers = GetNumbers(full);
+            IList<int> numbers = GetNumbers(Full);
             a = Get(numbers, 0);
             b = Get(numbers, 1);
             c = Get(numbers, 2);
             d = Get(numbers, 3);
-        }
-
-        public bool SupportGitStatusPorcelain
-        {
-            get { return this >= v1_7_0; }
-        }
-
-        public bool CloneCanAskForProgress
-        {
-            get { return this >= v1_7_0; }
         }
 
         public bool FetchCanAskForProgress
@@ -50,11 +41,6 @@ namespace GitCommands
             get { return this >= v1_7_1; }
         }
 
-        public bool GuiDiffToolExist
-        {
-            get { return this >= v1_7_0; }
-        }
-
         public bool StashUntrackedFilesSupported
         {
             get { return this >= v1_7_7; }
@@ -63,6 +49,11 @@ namespace GitCommands
         public bool SupportPushWithRecursiveSubmodulesCheck
         {
             get { return this >= v1_7_7; }
+        }
+
+        public bool SupportPushWithRecursiveSubmodulesOnDemand
+        {
+            get { return this >= v1_7_11; }
         }
 
         public bool IsUnknown
@@ -173,7 +164,7 @@ namespace GitCommands
 
         public override string ToString()
         {
-            return full.Replace(".msysgit.0", "").Replace(".msysgit.1", "");
+            return Full.Replace(".msysgit.0", "").Replace(".msysgit.1", "");
         }
     }
 }

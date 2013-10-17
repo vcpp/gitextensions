@@ -2,6 +2,7 @@
 using System.Drawing;
 using System.Windows.Forms;
 using GitCommands;
+using GitCommands.Utils;
 using ResourceManager.Translation;
 
 namespace GitUI
@@ -45,9 +46,9 @@ namespace GitUI
 
             SetFont();
             _NO_TRANSLATE_programTitle.Font = new Font(SystemFonts.MessageBoxFont, FontStyle.Bold);
-
-            var image = Lemmings.GetPictureBoxImage(DateTime.Now);
-            pictureBox1.Image = image ?? Properties.Resources.git_extensions_logo_final_128;
+			
+           	var image = Lemmings.GetPictureBoxImage(DateTime.Now);
+           	pictureBox1.Image = image ?? Properties.Resources.git_extensions_logo_final_128;
         }
 
         private void SetFont()
@@ -64,13 +65,13 @@ namespace GitUI
         {
             base.OnLoad(e);
 
-            _NO_TRANSLATE_versionLabel.Text = string.Format(_version.Text, Settings.GitExtensionsVersionString);
+            _NO_TRANSLATE_versionLabel.Text = string.Format(_version.Text, AppSettings.GitExtensionsVersionString);
 
-            if (Settings.RunningOnUnix())
+            if (EnvUtils.RunningOnUnix())
                 _NO_TRANSLATE_osLabel.Text = "Unix";
-            if (Settings.RunningOnMacOSX())
+            if (EnvUtils.RunningOnMacOSX())
                 _NO_TRANSLATE_osLabel.Text = "MacOSX";
-            if (Settings.RunningOnWindows())
+            if (EnvUtils.RunningOnWindows())
                 _NO_TRANSLATE_osLabel.Text = "Windows";
         }
     }

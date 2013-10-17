@@ -136,8 +136,8 @@
             // FormGerritPublish
             // 
             this.AcceptButton = this.Publish;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
             this.ClientSize = new System.Drawing.Size(644, 164);
             this.Controls.Add(this._NO_TRANSLATE_Topic);
             this.Controls.Add(this._NO_TRANSLATE_Branch);
@@ -154,7 +154,6 @@
             this.Name = "FormGerritPublish";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterParent;
             this.Text = "Publish Gerrit Change";
-            this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.FormGerritPublish_FormClosing);
             this.Load += new System.EventHandler(this.FormGerritPublishLoad);
             this.ResumeLayout(false);
             this.PerformLayout();

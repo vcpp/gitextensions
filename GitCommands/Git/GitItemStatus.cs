@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
+﻿using System.Threading.Tasks;
 
 namespace GitCommands
 {
@@ -48,6 +46,8 @@ namespace GitCommands
         public bool IsStaged { get; set; }
         public bool IsSubmodule { get; set; }
         public string RenameCopyPercentage { get; set; }
+
+        public Task<GitSubmoduleStatus> SubmoduleStatus { get; set; }
 
         public override string ToString()
         {

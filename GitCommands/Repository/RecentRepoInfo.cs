@@ -1,10 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.IO;
 using System.Drawing;
-using GitCommands;
+using System.IO;
 
 namespace GitCommands.Repository
 {
@@ -25,7 +22,8 @@ namespace GitCommands.Repository
             try
             {
                 DirInfo = new DirectoryInfo(Repo.Path);
-            }catch(Exception)
+            }
+            catch (SystemException)
             {
                 DirInfo = null;
                 Caption = Repo.Path;
@@ -76,11 +74,11 @@ namespace GitCommands.Repository
         
         public RecentRepoSplitter()
         {
-            MaxRecentRepositories = Settings.MaxMostRecentRepositories;
-            ShorteningStrategy = Settings.ShorteningRecentRepoPathStrategy;
-            SortMostRecentRepos = Settings.SortMostRecentRepos;
-            SortLessRecentRepos = Settings.SortLessRecentRepos;
-            RecentReposComboMinWidth = Settings.RecentReposComboMinWidth;
+            MaxRecentRepositories = AppSettings.MaxMostRecentRepositories;
+            ShorteningStrategy = AppSettings.ShorteningRecentRepoPathStrategy;
+            SortMostRecentRepos = AppSettings.SortMostRecentRepos;
+            SortLessRecentRepos = AppSettings.SortLessRecentRepos;
+            RecentReposComboMinWidth = AppSettings.RecentReposComboMinWidth;
         
         }
 
@@ -160,18 +158,15 @@ namespace GitCommands.Repository
             List<RecentRepoInfo> list = null;
             bool existsShortName;
             //if there is no short name for a repo, then try to find unique caption extendig short directory path
-            if (shortenPath)
+            if (shortenPath && repoInfo.DirInfo != null)
             {
-                if (repoInfo.DirInfo != null)
-                {
-                    string s = repoInfo.DirName.Substring(repoInfo.DirInfo.FullName.Length);
-                    s = s.Trim(Path.DirectorySeparatorChar);
-                    //candidate for short name
-                    repoInfo.Caption = repoInfo.ShortName;
-                    if (!s.IsNullOrEmpty())
-                        repoInfo.Caption += " (" + s + ")";
-                    repoInfo.DirInfo = repoInfo.DirInfo.Parent;
-                }
+                string s = repoInfo.DirName.Substring(repoInfo.DirInfo.FullName.Length);
+                s = s.Trim(Path.DirectorySeparatorChar);
+                //candidate for short name
+                repoInfo.Caption = repoInfo.ShortName;
+                if (!s.IsNullOrEmpty())
+                    repoInfo.Caption += " (" + s + ")";
+                repoInfo.DirInfo = repoInfo.DirInfo.Parent;
             }
             else
                 repoInfo.Caption = repoInfo.Repo.Path;
@@ -211,9 +206,9 @@ namespace GitCommands.Repository
                 return r;
             else
                 if (l.EndsWith(Path.DirectorySeparatorChar.ToString()))
-                    return l.Join("", r);
+                    return string.Join("", l, r);
                 else
-                    return l.Join(Path.DirectorySeparatorChar.ToString(), r);
+                    return string.Join(Path.DirectorySeparatorChar.ToString(), l, r);
 
         }
 
@@ -260,8 +255,7 @@ namespace GitCommands.Repository
                         root = dirInfo.Parent.Name;
                 }
 
-
-                Func<int, bool> shortenPath = delegate(int skipCount)
+                Func<int, bool> shortenPathWithCompany = delegate(int skipCount)
                 {
                     bool result = false;
                     string c = null;
@@ -286,7 +280,7 @@ namespace GitCommands.Repository
 
                     repoInfo.Caption = MakePath(root, c);
                     if (addDots)
-                        repoInfo.Caption = MakePath(repoInfo.Caption, "...");
+                        repoInfo.Caption = MakePath(repoInfo.Caption, "..");
 
                     repoInfo.Caption = MakePath(repoInfo.Caption, r);
                     repoInfo.Caption = MakePath(repoInfo.Caption, workingDir);
@@ -295,17 +289,37 @@ namespace GitCommands.Repository
                 };
 
 
+                Func<int, bool> shortenPath = delegate(int skipCount)
+                {
+                    string path = repoInfo.Repo.Path;
+                    string fistDir = (root ?? company) ?? repository;
+                    string lastDir = workingDir;
+                    if (fistDir != null && path.Length - lastDir.Length - fistDir.Length - skipCount > 0)
+                    {
 
+                        int middle = (path.Length - lastDir.Length) / 2 + (path.Length - lastDir.Length) % 2;
+                        int leftEnd = middle - skipCount / 2;
+                        int rightStart = middle + skipCount / 2 + skipCount % 2;
+
+                        if (leftEnd == rightStart)
+                            repoInfo.Caption = path;
+                        else
+                            repoInfo.Caption = path.Substring(0, leftEnd) + ".." + path.Substring(rightStart, path.Length - rightStart);
+                        return true;
+                    }
+
+                    return false;
+                };
 
                 //if fixed width is not set then short as in pull request vccp's example
                 //full "E:\CompanyName\Projects\git\ProductName\Sources\RepositoryName\WorkingDirName"
                 //short "E:\CompanyName\...\RepositoryName\WorkingDirName"
                 if (this.RecentReposComboMinWidth == 0)
                 {
-                    shortenPath(0);
+                    shortenPathWithCompany(0);
                 }
                 //else skip symbols beginning from the middle to both sides, 
-                //so we'll see "E:\Compa......toryName\WorkingDirName" and "E:\...\WorkingDirName" at the end.
+                //so we'll see "E:\Compa...toryName\WorkingDirName" and "E:\...\WorkingDirName" at the end.
                 else
                 {
                     SizeF captionSize;
@@ -317,7 +331,7 @@ namespace GitCommands.Repository
                         skipCount++;
                         captionSize = graphics.MeasureString(repoInfo.Caption, measureFont);
                     }
-                    while (captionSize.Width > RecentReposComboMinWidth && canShorten);
+                    while (captionSize.Width > RecentReposComboMinWidth - 10 && canShorten);
                 }
             }
 

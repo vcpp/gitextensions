@@ -13,18 +13,18 @@ namespace FindLargeFiles
     {
         private readonly float threshold = 1.0f;
         private readonly GitUIBaseEventArgs gitUiCommands;
-        private readonly IGitCommands gitCommands;
+        private readonly IGitModule gitCommands;
         private string[] revList;
         private readonly Dictionary<string, GitObject> list = new Dictionary<string, GitObject>();
         private readonly SortableObjectsList gitObjects = new SortableObjectsList();
 
-        public FindLargeFilesForm(float threshold, GitUIBaseEventArgs gitUiCommands)
+        public FindLargeFilesForm(float threshold, GitUIBaseEventArgs gitUiEventArgs)
         {
             InitializeComponent();
 
             this.threshold = threshold;
-            this.gitUiCommands = gitUiCommands;
-            this.gitCommands = gitUiCommands.GitCommands;
+            this.gitUiCommands = gitUiEventArgs;
+            this.gitCommands = gitUiEventArgs.GitModule;
         }
 
         private void findLargeFilesFunction()
@@ -39,7 +39,7 @@ namespace FindLargeFiles
                     DateTime date;
                     if (!revData.ContainsKey(commit))
                     {
-                        string revDate = gitCommands.RunGit(string.Format("show -s {0} --format=\"%ci\"", commit));
+                        string revDate = gitCommands.RunGitCmd(string.Format("show -s {0} --format=\"%ci\"", commit));
                         DateTime.TryParse(revDate, out date);
                         revData.Add(commit, date);
                     }
@@ -60,13 +60,13 @@ namespace FindLargeFiles
                         curGitObject.Commit.Add(commit);
                     }
                 }
-                string objectsPackDirectory = gitUiCommands.GetGitDirectory() + "objects/pack/";
+                string objectsPackDirectory = gitCommands.GetGitDirectory() + "objects/pack/";
                 if (Directory.Exists(objectsPackDirectory))
                 {
                     var packFiles = Directory.GetFiles(objectsPackDirectory, "pack-*.idx");
                     foreach (var pack in packFiles)
                     {
-                        string[] objects = gitCommands.RunGit(string.Concat("verify-pack -v ", pack)).Split('\n');
+                        string[] objects = gitCommands.RunGitCmd(string.Concat("verify-pack -v ", pack)).Split('\n');
                         pbRevisions.Invoke((Action)(() => pbRevisions.Value = pbRevisions.Value + (int)((revList.Length * 0.1f) / packFiles.Length)));
                         foreach (var gitobj in objects.Where(x => x.Contains(" blob ")))
                         {
@@ -95,7 +95,7 @@ namespace FindLargeFiles
         protected override void OnLoad(EventArgs e)
         {
             base.OnLoad(e);
-            revList = gitCommands.RunGit("rev-list HEAD").Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            revList = gitCommands.RunGitCmd("rev-list HEAD").Split(new char[] { '\n' }, StringSplitOptions.RemoveEmptyEntries);
             pbRevisions.Maximum = (int)(revList.Length * 1.1f);
             BranchesGrid.DataSource = gitObjects;
             Thread MyThread = new Thread(findLargeFilesFunction);
@@ -109,7 +109,7 @@ namespace FindLargeFiles
             {
                 pbRevisions.Invoke((Action)(() => pbRevisions.Value = i));
                 string rev = revList[i];
-                string[] objects = gitCommands.RunGit(string.Concat("ls-tree -zrl ", rev)).Split(new char[] { '\0' }, StringSplitOptions.RemoveEmptyEntries);
+                string[] objects = gitCommands.RunGitCmd(string.Concat("ls-tree -zrl ", rev)).Split(new char[] { '\0' }, StringSplitOptions.RemoveEmptyEntries);
                 foreach (string objData in objects)
                 {
                     // "100644 blob b17a497cdc6140aa3b9a681344522f44768165ac 2120195\tBin/Dictionaries/de-DE.dic"
@@ -134,14 +134,14 @@ namespace FindLargeFiles
                 foreach (GitObject gitObject in gitObjects.Where(gitObject => gitObject.Delete))
                 {
                     sb.AppendLine(String.Format("\"{0}\" filter-branch --index-filter \"git rm -r -f --cached --ignore-unmatch {1}\" --prune-empty -- --all",
-                        gitUiCommands.GitCommand, gitObject.Path));
+                        gitCommands.GitCommand, gitObject.Path));
                 }
                 sb.AppendLine(String.Format("for /f %%a IN ('\"{0}\" for-each-ref --format=%%^(refname^) refs/original/') DO \"{0}\" update-ref -d %%a",
-                        gitUiCommands.GitCommand));
+                        gitCommands.GitCommand));
                 sb.AppendLine(String.Format("\"{0}\" reflog expire --expire=now --all",
-                    gitUiCommands.GitCommand));
+                    gitCommands.GitCommand));
                 sb.AppendLine(String.Format("\"{0}\" gc --aggressive --prune=now",
-                    gitUiCommands.GitCommand));
+                    gitCommands.GitCommand));
                 gitUiCommands.GitUICommands.StartBatchFileProcessDialog(sb.ToString());
             }
             Close();

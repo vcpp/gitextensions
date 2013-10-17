@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Diagnostics;
-using System.Drawing;
-using System.Linq;
-using System.Text;
+﻿using System.Diagnostics;
 using System.Windows.Forms;
 using GitUI;
 
@@ -31,7 +24,7 @@ namespace Gerrit
 
         private void _NO_TRANSLATE_TargetLabel_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
-            Process.Start(@"http://github.com/openstack-ci/git-review#git-review");
+            Process.Start(@"http://github.com/openstack-infra/git-review#git-review");
         }
     }
 }

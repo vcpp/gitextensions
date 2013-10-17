@@ -1,29 +1,37 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text.RegularExpressions;
+using GitUIPluginInterfaces.BuildServerIntegration;
+using JetBrains.Annotations;
 
 namespace GitCommands
 {
-    public sealed class GitRevision : IGitItem
+    public sealed class GitRevision : IGitItem, INotifyPropertyChanged
     {
-        public const string UncommittedWorkingDirGuid = "0000000000000000000000000000000000000000";
+        /// <summary>40 characters of 0's</summary>
+        public const string UnstagedGuid = "0000000000000000000000000000000000000000";
+        /// <summary>40 characters of 1's</summary>
         public const string IndexGuid = "1111111111111111111111111111111111111111";
+        /// <summary>40 characters of a-f or any digit.</summary>
         public const string Sha1HashPattern = @"[a-f\d]{40}";
-        public static readonly Regex Sha1HashRegex = new Regex("^" + GitRevision.Sha1HashPattern + "$", RegexOptions.Compiled);
+        public static readonly Regex Sha1HashRegex = new Regex("^" + Sha1HashPattern + "$", RegexOptions.Compiled);
 
+        public string[] ParentGuids;
+        private IList<IGitItem> _subItems;
+        private readonly List<GitRef> _refs = new List<GitRef>();
+        private readonly GitModule _module;
+        private BuildInfo _buildStatus;
 
-        public String[] ParentGuids;
-        private List<IGitItem> _subItems;
-        private readonly List<GitHead> heads = new List<GitHead>();
-
-        public GitRevision(string guid)
+        public GitRevision(GitModule aModule, string guid)
         {
             Guid = guid;
             Message = "";
+            _module = aModule;
         }
 
-        public List<GitHead> Heads { get { return heads; } }
+        public List<GitRef> Refs { get { return _refs; } }
 
         public string TreeGuid { get; set; }
 
@@ -31,9 +39,22 @@ namespace GitCommands
         public string AuthorEmail { get; set; }
         public DateTime AuthorDate { get; set; }
         public string Committer { get; set; }
+        public string CommitterEmail { get; set; }
         public DateTime CommitDate { get; set; }
 
+        public BuildInfo BuildStatus
+        {
+            get { return _buildStatus; }
+            set
+            {
+                if (Equals(value, _buildStatus)) return;
+                _buildStatus = value;
+                OnPropertyChanged("BuildStatus");
+            }
+        }
+
         public string Message { get; set; }
+        public string Body { get; set; }
         //UTF-8 when is null or empty
         public string MessageEncoding { get; set; }
 
@@ -42,9 +63,9 @@ namespace GitCommands
         public string Guid { get; set; }
         public string Name { get; set; }
 
-        public List<IGitItem> SubItems
+        public IEnumerable<IGitItem> SubItems
         {
-            get { return _subItems ?? (_subItems = Settings.Module.GetTree(TreeGuid, false)); }
+            get { return _subItems ?? (_subItems = _module.GetTree(TreeGuid, false)); }
         }
 
         #endregion
@@ -61,15 +82,14 @@ namespace GitCommands
 
         public bool MatchesSearchString(string searchString)
         {
-            if (Heads.Any(gitHead => gitHead.Name.ToLower().Contains(searchString)))
+            if (Refs.Any(gitHead => gitHead.Name.ToLower().Contains(searchString)))
                 return true;
 
             if ((searchString.Length > 2) && Guid.StartsWith(searchString, StringComparison.CurrentCultureIgnoreCase))
                 return true;
 
-            return
-                (Author != null && Author.StartsWith(searchString, StringComparison.CurrentCultureIgnoreCase)) ||
-                Message.ToLower().Contains(searchString);
+            return (Author != null && Author.StartsWith(searchString, StringComparison.CurrentCultureIgnoreCase)) ||
+                    Message.ToLower().Contains(searchString);
         }
 
         public bool IsArtificial()
@@ -79,7 +99,7 @@ namespace GitCommands
 
         public static bool IsArtificial(string guid)
         {
-            return guid == UncommittedWorkingDirGuid ||
+            return guid == UnstagedGuid ||
                     guid == IndexGuid;
         }
 
@@ -88,5 +108,13 @@ namespace GitCommands
             return ParentGuids != null && ParentGuids.Length > 0;
         }
 
+        public event PropertyChangedEventHandler PropertyChanged;
+
+        [NotifyPropertyChangedInvocator]
+        private void OnPropertyChanged(string propertyName)
+        {
+            var handler = PropertyChanged;
+            if (handler != null) handler(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
 }

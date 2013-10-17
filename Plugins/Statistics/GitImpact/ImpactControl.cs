@@ -3,16 +3,14 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Data;
 using System.Linq;
-using System.Text;
 using System.Windows.Forms;
 using GitCommands.Statistics;
-using GitUI;
+using GitUIPluginInterfaces;
 
 namespace GitImpact
 {
-    public class ImpactControl : GitExtensionsControl
+    public class ImpactControl : UserControl
     {
         private const int block_width = 60;
         private const int transition_width = 50;
@@ -45,20 +43,23 @@ namespace GitImpact
 
         public ImpactControl()
         {
-            impact_loader = new ImpactLoader();
-            impact_loader.RespectMailmap = true; // respect the .mailmap file
-            impact_loader.Updated += OnImpactUpdate;
 
             Clear();
 
             InitializeComponent();
-            Translate();
 
             // Set DoubleBuffer flag for flicker-free drawing
             this.SetStyle(ControlStyles.AllPaintingInWmPaint |
                 ControlStyles.UserPaint | ControlStyles.DoubleBuffer, true);
 
             MouseWheel += ImpactControl_MouseWheel;
+        }
+
+        public void Init(IGitModule Module)
+        {
+            impact_loader = new ImpactLoader(Module);
+            impact_loader.RespectMailmap = true; // respect the .mailmap file
+            impact_loader.Updated += OnImpactUpdate;        
         }
 
         private void Clear()
@@ -79,10 +80,7 @@ namespace GitImpact
         public void Stop()
         {
             if (impact_loader != null)
-            {
-                impact_loader.Dispose();
-                impact_loader = null;
-            }
+                impact_loader.Stop();
         }
 
         void ImpactControl_MouseWheel(object sender, MouseEventArgs e)
@@ -138,8 +136,11 @@ namespace GitImpact
 
         public void UpdateData()
         {
-            impact_loader.ShowSubmodules = showSubmodules;
-            impact_loader.Execute();
+            if (impact_loader != null)
+            {
+                impact_loader.ShowSubmodules = showSubmodules;
+                impact_loader.Execute();
+            }
         }
 
         private bool showSubmodules;
@@ -149,7 +150,7 @@ namespace GitImpact
             set
             {
                 showSubmodules = value;
-                impact_loader.Dispose();
+                Stop();
                 Clear();
                 UpdateData();
             }
@@ -249,14 +250,16 @@ namespace GitImpact
                 if (!line_labels.ContainsKey(author))
                     return;
 
-                Font font = new Font("Arial", lines_font_size);
-                Brush brush = new SolidBrush(Color.White);
-
-                foreach (var label in line_labels[author])
+                using (Font font = new Font("Arial", lines_font_size))
                 {
-                    SizeF sz = g.MeasureString(label.Item2.ToString(), font);
-                    PointF pt = new PointF(label.Item1.X - sz.Width / 2, label.Item1.Y - sz.Height / 2);
-                    g.DrawString(label.Item2.ToString(), font, brush, pt);
+                    Brush brush = Brushes.White;
+
+                    foreach (var label in line_labels[author])
+                    {
+                        SizeF sz = g.MeasureString(label.Item2.ToString(), font);
+                        PointF pt = new PointF(label.Item1.X - sz.Width/2, label.Item1.Y - sz.Height/2);
+                        g.DrawString(label.Item2.ToString(), font, brush, pt);
+                    }
                 }
             }
         }
@@ -265,14 +268,16 @@ namespace GitImpact
         {
             lock (data_lock)
             {
-                Font font = new Font("Arial", week_font_size);
-                Brush brush = new SolidBrush(Color.Gray);
-
-                foreach (var label in week_labels)
+                using (Font font = new Font("Arial", week_font_size))
                 {
-                    SizeF sz = g.MeasureString(label.Item2.ToString("dd. MMM yy"), font);
-                    PointF pt = new PointF(label.Item1.X - sz.Width / 2, label.Item1.Y + sz.Height / 2);
-                    g.DrawString(label.Item2.ToString("dd. MMM yy"), font, brush, pt);
+                    Brush brush = Brushes.Gray;
+
+                    foreach (var label in week_labels)
+                    {
+                        SizeF sz = g.MeasureString(label.Item2.ToString("dd. MMM yy"), font);
+                        PointF pt = new PointF(label.Item1.X - sz.Width/2, label.Item1.Y + sz.Height/2);
+                        g.DrawString(label.Item2.ToString("dd. MMM yy"), font, brush, pt);
+                    }
                 }
             }
         }
@@ -416,12 +421,7 @@ namespace GitImpact
 
         private int GenerateIntFromString(string text)
         {
-            int number = 0;
-            foreach (char c in text)
-            {
-                number += (int)c;
-            }
-            return number;
+            return text.Sum(c => (int) c);
         }
 
         /// <summary>

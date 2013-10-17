@@ -15,19 +15,22 @@ namespace GitUI
 
         protected readonly SynchronizationContext syncContext;
         private bool UseDialogSettings = true;
+        private ProcessOutputTimer outpuTimer;
 
         public FormStatus(): this(true)
         { }
 
         public FormStatus(bool useDialogSettings)
+            : base(true)
         {
+            outpuTimer = new ProcessOutputTimer(AppendMessageCrossThread);
             syncContext = SynchronizationContext.Current;
             UseDialogSettings = useDialogSettings;
 
             InitializeComponent();
             Translate();
             if (UseDialogSettings)
-                KeepDialogOpen.Checked = !GitCommands.Settings.CloseProcessDialog;
+                KeepDialogOpen.Checked = !GitCommands.AppSettings.CloseProcessDialog;
             else
                 KeepDialogOpen.Hide();
         }
@@ -39,11 +42,27 @@ namespace GitUI
             AbortCallback = abort;
         }
 
-        public StringBuilder OutputString = new StringBuilder();
+        private readonly StringBuilder _outputString = new StringBuilder();
         public ProcessStart ProcessCallback;
         public ProcessAbort AbortCallback;
         private bool errorOccurred;
         private bool showOnError;
+
+        protected override CreateParams CreateParams
+        {
+
+            get
+            {
+
+                CreateParams mdiCp = base.CreateParams;
+
+                mdiCp.ClassStyle = mdiCp.ClassStyle | NativeConstants.CP_NOCLOSE_BUTTON;
+
+                return mdiCp;
+
+            }
+
+        }
 
         public bool ErrorOccurred()
         {
@@ -64,17 +83,17 @@ namespace GitUI
                         ProgressBar.Value = Math.Min(100, progressValue);
 
 #if !__MonoCS__
-                        if (GitCommands.Settings.RunningOnWindows() && TaskbarManager.IsPlatformSupported)
+                        if (GitCommands.Utils.EnvUtils.RunningOnWindows() && TaskbarManager.IsPlatformSupported)
+                        {
+                            try
                             {
-                                try
-                                {
-                                    TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Normal);
-                                    TaskbarManager.Instance.SetProgressValue(progressValue, 100);
-                                }
-                                catch (InvalidOperationException)
-                                {
-                                }
+                                TaskbarManager.Instance.SetProgressState(TaskbarProgressBarState.Normal);
+                                TaskbarManager.Instance.SetProgressValue(progressValue, 100);
                             }
+                            catch (InvalidOperationException)
+                            {
+                            }
+                        }
 #endif
                     }
                     Text = text;
@@ -82,45 +101,55 @@ namespace GitUI
             syncContext.Send(method, this);
         }
 
-        public void AddToTimer(string text)
+        public void AppendMessageCrossThread(string text)
         {
-            lock (ProcessOutputTimer.linesToAdd)
+            if (syncContext == SynchronizationContext.Current)
+                AppendMessage(text); 
+            else
+                syncContext.Post(o => AppendMessage(text), this);
+        }
+
+        public void AddMessage(string text)
+        {
+            AddMessageToTimer(text);
+        }
+
+        public void AddMessageLine(string text)
+        {
+            AddMessage(text + Environment.NewLine);
+        }
+
+        private void AddMessageToTimer(string text)
+        {
+            if (outpuTimer != null)
+                outpuTimer.Append(text);
+        }
+        
+        private void AppendMessage(string text)
+        {
+            //if not disposed
+            if (outpuTimer != null)
             {
-                ProcessOutputTimer.addLine(text);
+                MessageTextBox.Text += text;
+                MessageTextBox.SelectionStart = MessageTextBox.Text.Length;
+                MessageTextBox.ScrollToCaret();
+                MessageTextBox.Visible = true;
             }
         }
 
-        public void AddOutputCrossThread(string text)
-        {
-            SendOrPostCallback method = o =>
-                {
-                    Output.Text += text;
-                    Output.SelectionStart = Output.Text.Length;
-                    Output.ScrollToCaret();
-                    Output.Visible = true;
-                };
-            syncContext.Post(method, this);
-        }
-
-        public void AddOutput(string text)
-        {
-            Output.Text += text + Environment.NewLine;
-            Output.Visible = true;
-            Output.SelectionStart = Output.Text.Length;
-            Output.ScrollToCaret();
-        }
 
         public void Done(bool isSuccess)
         {
-            ProcessOutputTimer.Stop();
-            AddOutput("Done");
+            if (outpuTimer != null)
+                outpuTimer.Stop(true);
+            AppendMessage("Done");
             ProgressBar.Visible = false;
             Ok.Enabled = true;
             Ok.Focus();
             AcceptButton = Ok;
             Abort.Enabled = false;
 #if !__MonoCS__
-            if (GitCommands.Settings.RunningOnWindows() && TaskbarManager.IsPlatformSupported)
+            if (GitCommands.Utils.EnvUtils.RunningOnWindows() && TaskbarManager.IsPlatformSupported)
             {
                 try
                 {
@@ -138,7 +167,6 @@ namespace GitUI
                 picBoxSuccessFail.Image = GitUI.Properties.Resources.success;
             else
                 picBoxSuccessFail.Image = GitUI.Properties.Resources.error;
-            splitContainer1.Panel2Collapsed = false;
 
             errorOccurred = !isSuccess;
 
@@ -151,7 +179,7 @@ namespace GitUI
                 Visible = true;
             }
 
-            if (isSuccess && (showOnError || (UseDialogSettings && GitCommands.Settings.CloseProcessDialog)))
+            if (isSuccess && (showOnError || (UseDialogSettings && GitCommands.AppSettings.CloseProcessDialog)))
             {
                 Close();
             }
@@ -159,10 +187,16 @@ namespace GitUI
 
         public void Reset()
         {
-            Output.Text = "";
-            Output.Visible = false;
+            outpuTimer.Clear();
+            MessageTextBox.Text = "";
+            MessageTextBox.Visible = false;
+            lock (_outputString)
+            {
+                _outputString.Clear();
+            }
             ProgressBar.Visible = true;
             Ok.Enabled = false;
+            ActiveControl = null;
         }
 
         public void Retry()
@@ -195,7 +229,6 @@ namespace GitUI
 
         private void FormStatus_Load(object sender, EventArgs e)
         {
-            splitContainer1.Panel2Collapsed = true;
             if (DesignMode)
                 return;
 
@@ -209,20 +242,14 @@ namespace GitUI
                 Abort.Visible = false;
             }
             StartPosition = FormStartPosition.CenterParent;
-            RestorePosition("process");
-            Start();
-        }
 
-        protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
-        {
-            SavePosition("process");
-            base.OnClosing(e);
+            Start();
         }
 
         private void FormStatus_FormClosed(object sender, FormClosedEventArgs e)
         {
 #if !__MonoCS__
-            if (GitCommands.Settings.RunningOnWindows() && TaskbarManager.IsPlatformSupported)
+            if (GitCommands.Utils.EnvUtils.RunningOnWindows() && TaskbarManager.IsPlatformSupported)
             {
                 try
                 {
@@ -236,7 +263,7 @@ namespace GitUI
         private void Start()
         {
 #if !__MonoCS__
-            if (GitCommands.Settings.RunningOnWindows() && TaskbarManager.IsPlatformSupported)
+            if (GitCommands.Utils.EnvUtils.RunningOnWindows() && TaskbarManager.IsPlatformSupported)
             {
                 try
                 {
@@ -245,7 +272,7 @@ namespace GitUI
                 catch (InvalidOperationException) { }
             }
 #endif
-            ProcessOutputTimer.Start(this);
+            outpuTimer.Start();
             Reset();
             ProcessCallback(this);
         }
@@ -255,16 +282,32 @@ namespace GitUI
             try
             {
                 AbortCallback(this);
-                OutputString.Append(Environment.NewLine + "Aborted");
+                AppendToOutputString(Environment.NewLine + "Aborted");
                 Done(false);
                 DialogResult = DialogResult.Abort;
             }
             catch { }
         }
 
+        public void AppendToOutputString(string text)
+        {
+            lock (_outputString)
+            {
+                _outputString.Append(text);
+            }
+        }
+
+        public string GetOutputString()
+        {
+            lock (_outputString)
+            {
+                return _outputString.ToString();
+            }
+        }
+
         private void KeepDialogOpen_CheckedChanged(object sender, EventArgs e)
         {
-            GitCommands.Settings.CloseProcessDialog = !KeepDialogOpen.Checked;
+            GitCommands.AppSettings.CloseProcessDialog = !KeepDialogOpen.Checked;
         }
     }
 }

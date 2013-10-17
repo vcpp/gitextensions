@@ -1,27 +1,14 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using JetBrains.Annotations;
+
 namespace System
 {
-    public class Tuple<T1, T2>
-    {
-        public Tuple(T1 item1, T2 item2)
-        {
-            Item1 = item1;
-            Item2 = item2;
-        }
-
-        public T1 Item1 { get; private set; }
-        public T2 Item2 { get; private set; }
-    }
-
-    public static class Tuple
-    {
-        public static Tuple<T1, T2> Create<T1, T2>(T1 item1, T2 item2)
-        {
-            return new Tuple<T1, T2>(item1, item2);
-        }
-    }
-
     public static class StringExtensions
     {
+        /// <summary>'\n'</summary>
+        static readonly char[] NewLineSeparator = new char[] { '\n' };
 
         public static string SkipStr(this string str, string toSkip)
         {
@@ -49,13 +36,31 @@ namespace System
                 return str;
         }
 
+        public static string CommonPrefix(this string s, string other)
+        {
+            if (s.IsNullOrEmpty() || other.IsNullOrEmpty())
+                return string.Empty;
+
+            int prefixLength = 0;
+
+            foreach (char c in other)
+            {
+                if (s.Length <= prefixLength || s[prefixLength] != c)
+                    return s.Substring(0, prefixLength);
+
+                prefixLength++;
+            }
+
+            return s;
+        }
+
         public static bool IsNullOrEmpty(this string s)
         {
             return string.IsNullOrEmpty(s);
         }
 
 
-        public static string Join(this string left, string sep, string right)
+        public static string Combine(this string left, string sep, string right)
         {
             if (left.IsNullOrEmpty())
                 return right;
@@ -78,6 +83,109 @@ namespace System
             return quotationMark + s + quotationMark;
         }
 
+        /// <summary>
+        /// Quotes string if it is not null and not empty
+        /// </summary>
+        /// <param name="s"></param>
+        /// <returns></returns>
+        public static string QuoteNE(this string s)
+        {
+            return s.IsNullOrEmpty() ? s : s.Quote("\"");
+        }
+
+        /// <summary>
+        /// Indicates whether a specified string is null, empty, or consists only of white-space characters.
+        /// </summary>
+        /// <param name="value">The string to test.</param>
+        /// <remarks>
+        /// This method is copied from .Net Framework 4.0 and should be deleted after leaving 3.5.
+        /// </remarks>
+        /// <returns>
+        /// true if the value parameter is null or <see cref="string.Empty"/>, or if value consists exclusively of white-space characters.
+        /// </returns>
+        [Pure]
+        public static bool IsNullOrWhiteSpace([CanBeNull] this string value)
+        {
+            return string.IsNullOrWhiteSpace(value);
+        }
+
+        /// <summary>Indicates whether the specified string is neither null, nor empty, nor has only whitespace.</summary>
+        public static bool IsNotNullOrWhitespace([CanBeNull] this string value)
+        {
+            return !value.IsNullOrWhiteSpace();
+        }
+
+        /// <summary>
+        /// Determines whether the beginning of this instance matches any of the specified strings.
+        /// </summary>
+        /// <param name="value"></param>
+        /// <param name="starts">array of strings to compare</param>
+        /// <returns>true if any starts element matches the beginning of this string; otherwise, false.</returns>
+        public static bool StartsWithAny([CanBeNull] this string value, string[] starts)
+        {
+            return value != null && starts.Any(s => value.StartsWith(s));
+        }
+
+        public static string RemoveLines(this string value, Func<string, bool> shouldRemoveLine)
+        {
+            if (value.IsNullOrEmpty())
+                return value;
+
+            if (value[value.Length - 1] == '\n')
+                value = value.Substring(0, value.Length - 1);
+
+            StringBuilder sb = new StringBuilder();
+            string[] lines = value.Split('\n');
+
+            foreach (string line in lines)
+                if (!shouldRemoveLine(line))
+                    sb.Append(line + '\n');
+
+            return sb.ToString();
+        }
+
+        /// <summary>Split a string, removing empty entries, then trim whitespace.</summary>
+        public static IEnumerable<string> SplitThenTrim(this string value, params string[] separator)
+        {
+            return value
+                .Split(separator, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim());
+        }
+
+        /// <summary>Split a string, removing empty entries, then trim whitespace.</summary>
+        public static IEnumerable<string> SplitThenTrim(this string value, params char[] separator)
+        {
+            return value
+                .Split(separator, StringSplitOptions.RemoveEmptyEntries)
+                .Select(s => s.Trim());
+        }
+
+        /// <summary>Split a string, delimited by line-breaks, excluding empty entries.</summary>
+        public static string[] SplitLines(this string value)
+        {
+            return value.Split(NewLineSeparator);
+        }
+
+        /// <summary>Split a string, delimited by line-breaks, excluding empty entries; then trim whitespace.</summary>
+        public static IEnumerable<string> SplitLinesThenTrim(this string value)
+        {
+            return value.SplitThenTrim(NewLineSeparator);
+        }
+
+        /// <summary>Gets the text after the last separator.
+        /// If NO separator OR ends with separator, returns the original value.</summary>
+        public static string SubstringAfterLastSafe(this string value, string separator)
+        {// ex: "origin/master" -> "master"
+            if (value.EndsWith(separator) || !value.Contains(separator))
+            {// "origin/master/" OR "master" -> return original
+                return value;
+            }
+            return value.Substring(1 + value.LastIndexOf(separator, StringComparison.InvariantCultureIgnoreCase));
+        }
+        public static string SubstringAfterFirst(this string value, string separator)
+        {
+            return value.Substring(1 + value.IndexOf(separator, StringComparison.InvariantCultureIgnoreCase));
+        }
 
     }
 
@@ -88,25 +196,6 @@ namespace System
         {
             return force ? " -f " : string.Empty;
         }
-        
+
     }
-
-    public static class StreamExtensions
-    {
-        //copied from http://stackoverflow.com/a/1253049/1399492
-        //it can be removed after move to .net 4
-        public static void CopyTo(this System.IO.Stream src, System.IO.Stream dest)
-        {
-            int size = (src.CanSeek) ? Math.Min((int)(src.Length - src.Position), 0x2000) : 0x2000;
-            byte[] buffer = new byte[size];
-            int n;
-            do
-            {
-                n = src.Read(buffer, 0, buffer.Length);
-                dest.Write(buffer, 0, n);
-            } while (n != 0);
-        }
-    }
-
-
 }

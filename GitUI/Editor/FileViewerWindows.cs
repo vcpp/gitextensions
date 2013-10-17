@@ -1,10 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
 using GitCommands;
 using ICSharpCode.TextEditor;
 using ICSharpCode.TextEditor.Document;
-using System.Collections.Generic;
 
 namespace GitUI.Editor
 {
@@ -31,6 +31,7 @@ namespace GitUI.Editor
 
         public new Font Font 
         {
+            get { return TextEditor.Font; } 
             set { TextEditor.Font = value; } 
         }
 
@@ -135,6 +136,16 @@ namespace GitUI.Editor
             TextEditor.Refresh();
         }
 
+        public void SetHighlightingForFile(string filename)
+        {
+            IHighlightingStrategy highlightingStrategy = HighlightingManager.Manager.FindHighlighterForFile(filename);
+            if (highlightingStrategy != null)
+                TextEditor.Document.HighlightingStrategy = highlightingStrategy;
+            else
+                TextEditor.SetHighlighting("XML");
+            TextEditor.Refresh();
+        }
+
         public string GetSelectedText()
         {
             return TextEditor.ActiveTextAreaControl.SelectionManager.SelectedText;
@@ -182,17 +193,16 @@ namespace GitUI.Editor
             return result;
         }
 
-        private void MarkDifference(IDocument document, List<LineSegment> linesRemoved, List<LineSegment> linesAdded)
+        private void MarkDifference(IDocument document, List<LineSegment> linesRemoved, List<LineSegment> linesAdded, int beginOffset)
         {            
             int count = Math.Min(linesRemoved.Count, linesAdded.Count);
 
             for (int i = 0; i < count; i++)
-                MarkDifference(document, linesRemoved[i], linesAdded[i]);        
+                MarkDifference(document, linesRemoved[i], linesAdded[i], beginOffset);        
         }
 
-        private void MarkDifference(IDocument document, LineSegment lineRemoved, LineSegment lineAdded)
+        private void MarkDifference(IDocument document, LineSegment lineRemoved, LineSegment lineAdded, int beginOffset)
         {
-            var beginOffset = 0;
             var lineRemovedEndOffset = lineRemoved.Length;
             var lineAddedEndOffset = lineAdded.Length;
             var endOffsetMin = Math.Min(lineRemovedEndOffset, lineAddedEndOffset);
@@ -200,9 +210,7 @@ namespace GitUI.Editor
 
             while (beginOffset < endOffsetMin)
             {
-                if (!document.GetCharAt(lineAdded.Offset + beginOffset).Equals('+') &&
-                    !document.GetCharAt(lineRemoved.Offset + beginOffset).Equals('-') &&
-                    !document.GetCharAt(lineAdded.Offset + beginOffset).Equals(
+                if (!document.GetCharAt(lineAdded.Offset + beginOffset).Equals(
                         document.GetCharAt(lineRemoved.Offset + beginOffset)))
                     break;
 
@@ -227,7 +235,7 @@ namespace GitUI.Editor
 
             if (lineAdded.Length - beginOffset - reverseOffset > 0)
             {
-                color = Settings.DiffAddedExtraColor;
+                color = AppSettings.DiffAddedExtraColor;
                 markerStrategy.AddMarker(new TextMarker(lineAdded.Offset + beginOffset,
                                                         lineAdded.Length - beginOffset - reverseOffset,
                                                         TextMarkerType.SolidBlock, color,
@@ -236,7 +244,7 @@ namespace GitUI.Editor
 
             if (lineRemoved.Length - beginOffset - reverseOffset > 0)
             {
-                color = Settings.DiffRemovedExtraColor;
+                color = AppSettings.DiffRemovedExtraColor;
                 markerStrategy.AddMarker(new TextMarker(lineRemoved.Offset + beginOffset,
                                                         lineRemoved.Length - beginOffset - reverseOffset,
                                                         TextMarkerType.SolidBlock, color,
@@ -251,13 +259,33 @@ namespace GitUI.Editor
             var document = TextEditor.Document;      
 
             var line = 0;
+
+            bool found = false;
+            int numberOfParents;
+            var linesRemoved = GetLinesStartingWith(document, ref line, '-', ref found);
+            var linesAdded = GetLinesStartingWith(document, ref line, '+', ref found);
+            if (linesAdded.Count == 1 && linesRemoved.Count == 1)
+            {
+                var lineA = linesRemoved[0];
+                var lineB = linesAdded[0];
+                if (lineA.Length > 4 && lineB.Length > 4 &&
+                    document.GetCharAt(lineA.Offset + 4) == 'a' &&
+                    document.GetCharAt(lineB.Offset + 4) == 'b')
+                    numberOfParents = 5;
+                else
+                    numberOfParents = 4;
+
+                MarkDifference(document, linesRemoved, linesAdded, numberOfParents);
+            }
+            
+            numberOfParents = 1;
             while (line < document.TotalNumberOfLines)
             {
-                bool found = false;
-                var linesRemoved = GetLinesStartingWith(document, ref line, '-', ref found);
-                var linesAdded = GetLinesStartingWith(document, ref line, '+', ref found);
+                found = false;
+                linesRemoved = GetLinesStartingWith(document, ref line, '-', ref found);
+                linesAdded = GetLinesStartingWith(document, ref line, '+', ref found);
 
-                MarkDifference(document, linesRemoved, linesAdded);                
+                MarkDifference(document, linesRemoved, linesAdded, numberOfParents);                
             }
         }
 
@@ -309,9 +337,10 @@ namespace GitUI.Editor
                 if (line == document.TotalNumberOfLines - 1)
                     forceAbort = true;
 
-                ProcessLineSegment(ref line, lineSegment, '+', Settings.DiffAddedColor);
-                ProcessLineSegment(ref line, lineSegment, '-', Settings.DiffRemovedColor);
-                ProcessLineSegment(ref line, lineSegment, '@', Settings.DiffSectionColor);
+                ProcessLineSegment(ref line, lineSegment, '+', AppSettings.DiffAddedColor);
+                ProcessLineSegment(ref line, lineSegment, '-', AppSettings.DiffRemovedColor);
+                ProcessLineSegment(ref line, lineSegment, '@', AppSettings.DiffSectionColor);
+                ProcessLineSegment(ref line, lineSegment, '\\', AppSettings.DiffSectionColor);
             }
         }
 
@@ -393,6 +422,14 @@ namespace GitUI.Editor
             TextEditor.ActiveTextAreaControl.Caret.Position = new TextLocation(0, lineNumber);
         }
 
+        public int LineAtCaret
+        {
+            get
+            {
+                return TextEditor.ActiveTextAreaControl.Caret.Position.Line;
+            }
+        }
+
         public void HighlightLine(int line, Color color)
         {
             if (line >= TextEditor.Document.TotalNumberOfLines)
@@ -403,6 +440,21 @@ namespace GitUI.Editor
             var lineSegment = document.GetLineSegment(line);
             markerStrategy.AddMarker(new TextMarker(lineSegment.Offset,
                                                     lineSegment.Length, TextMarkerType.SolidBlock, color
+                                                    ));
+        }
+
+        public void HighlightLines(int startLine, int endLine, Color color)
+        {
+            if (startLine > endLine || endLine >= TextEditor.Document.TotalNumberOfLines)
+                return;
+
+            var document = TextEditor.Document;
+            var markerStrategy = document.MarkerStrategy;
+            var startLineSegment = document.GetLineSegment(startLine);
+            var endLineSegment = document.GetLineSegment(endLine);
+            markerStrategy.AddMarker(new TextMarker(startLineSegment.Offset,
+                                                    endLineSegment.Offset - startLineSegment.Offset + endLineSegment.Length,
+                                                    TextMarkerType.SolidBlock, color
                                                     ));
         }
 
