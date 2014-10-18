@@ -44,20 +44,24 @@ namespace DeleteUnusedBranches
             ClearResults();
         }
 
-        private static IEnumerable<Branch> GetObsoleteBranches(RefreshContext context)
+        private static ICollection<Branch> GetObsoleteBranches(RefreshContext context)
         {
-            foreach (string branchName in GetObsoleteBranchNames(context))
-            {
-                context.CancellationToken.ThrowIfCancellationRequested();
+            return GetObsoleteBranchNames(context)
+                .AsParallel()
+                .WithCancellation(context.CancellationToken)
+                .Select(branchName => LoadBranch(context, branchName))
+                .ToList();
+        }
 
-                var commitLog = context.Commands.RunGitCmd(string.Concat("log --pretty=%ci\n%an\n%s ", branchName, "^1..", branchName)).Split('\n');
-                DateTime commitDate;
-                DateTime.TryParse(commitLog[0], out commitDate);
-				var authorName = commitLog.Length > 1 ? commitLog[1] : string.Empty;
-				var message = commitLog.Length > 2 ? commitLog[2] : string.Empty;
+        private static Branch LoadBranch(RefreshContext context, string branchName)
+        {
+            var commitLog = context.Commands.RunGitCmd(string.Concat("log --pretty=%ci\n%an\n%s ", branchName, "^1..", branchName)).Split('\n');
+            DateTime commitDate;
+            DateTime.TryParse(commitLog[0], out commitDate);
+            var authorName = commitLog.Length > 1 ? commitLog[1] : string.Empty;
+            var message = commitLog.Length > 2 ? commitLog[2] : string.Empty;
 
-                yield return new Branch(branchName, commitDate, authorName, message, commitDate < DateTime.Now - context.ObsolescenceDuration);
-            }
+            return new Branch(branchName, commitDate, authorName, message, commitDate < DateTime.Now - context.ObsolescenceDuration);
         }
 
         private static IEnumerable<string> GetObsoleteBranchNames(RefreshContext context)
@@ -215,7 +219,7 @@ namespace DeleteUnusedBranches
 
             var context = new RefreshContext(gitCommands, IncludeRemoteBranches.Checked, includeUnmergedBranches.Checked, referenceBranch, remote.Text,
                 useRegexFilter.Checked ? regexFilter.Text : null, TimeSpan.FromDays(days), refreshCancellation.Token);
-            Task.Factory.StartNew(() => GetObsoleteBranches(context).ToList(), CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default)
+            Task.Factory.StartNew(() => GetObsoleteBranches(context), CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default)
                 .ContinueWith(task =>
                 {
                     if (IsDisposed || context.CancellationToken.IsCancellationRequested)
