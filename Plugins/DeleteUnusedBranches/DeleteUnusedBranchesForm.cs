@@ -69,14 +69,46 @@ namespace DeleteUnusedBranches
             var regex = string.IsNullOrEmpty(context.RegexFilter) ? null : new Regex(context.RegexFilter, RegexOptions.Compiled);
 
             // TODO: skip current branch
-            return context.Commands.RunGitCmd("branch" + (context.IncludeRemotes ? " -r" : "") + (context.IncludeUnmerged ? "" : " --merged " + context.ReferenceBranch))
-                .Split('\n')
+            return GetBranchNames(context)
                 .Where(branchName => !string.IsNullOrEmpty(branchName))
                 .Select(branchName => branchName.Trim('*', ' ', '\n', '\r'))
                 .Where(branchName => branchName != "HEAD" &&
                                      branchName != context.ReferenceBranch &&
                                      (!context.IncludeRemotes || branchName.StartsWith(context.RemoteRepositoryName + "/")) &&
                                      (regex == null || regex.IsMatch(branchName)));
+        }
+
+        private static IEnumerable<string> GetBranchNames(RefreshContext context)
+        {
+            var remotesFlag = context.IncludeRemotes ? " -r" : string.Empty;
+            Func<string, string[]> getBranchNames = mergeFlag => context.Commands.RunGitCmd("branch" + remotesFlag + mergeFlag).Split('\n');
+
+            switch (context.MergeFilter)
+            {
+                case MergeRelation.All:
+                    return getBranchNames(string.Empty);
+                case MergeRelation.MergedOnly:
+                    return getBranchNames(" --merged");
+                case MergeRelation.NothingToMerge:
+                    var mergedBranches = getBranchNames(" --merged");
+                    var unmergedBranches = getBranchNames(" --no-merged");
+                    var emptyUnmergedBranches = unmergedBranches
+                        .AsParallel()
+                        .Where(branch => CalculateTentativeMergeDiff(branch, context.ReferenceBranch, context.Commands).Length == 0);
+                    return mergedBranches.Concat(emptyUnmergedBranches);
+                default:
+                    throw new ArgumentOutOfRangeException();
+            }
+        }
+
+        /// <summary>
+        /// Returns result of virtual three-way merge of the specified branches.
+        /// Empty result means that <see cref="mergeFromBranchName"/> doesn't contain changes to be merged into <see cref="mergeToBranchName"/>.
+        /// </summary>
+        private static string CalculateTentativeMergeDiff(string mergeFromBranchName, string mergeToBranchName, IGitModule git)
+        {
+            var mergeBase = git.RunGitCmd(string.Format("merge-base {0} {1}", mergeToBranchName, mergeFromBranchName)).Trim();
+            return git.RunGitCmd(string.Format("merge-tree {0} {1} {2}", mergeBase, mergeToBranchName, mergeFromBranchName)).Trim();
         }
 
         private void Delete_Click(object sender, EventArgs e)
@@ -175,11 +207,22 @@ namespace DeleteUnusedBranches
 
             if (includeUnmergedBranches.Checked)
                 MessageBox.Show(this, "Deleting unmerged branches will result in dangling commits. Use with caution!", "Delete", MessageBoxButtons.OK);
+            pnlUnmergedFilterOptions.Enabled = includeUnmergedBranches.Checked;
         }
 
         private void olderThanDays_ValueChanged(object sender, EventArgs e)
         {
             days = (int)olderThanDays.Value;
+            ClearResults();
+        }
+
+        private void optEmptyMergeBranches_CheckedChanged(object sender, EventArgs e)
+        {
+            ClearResults();
+        }
+
+        private void optAllBranches_CheckedChanged(object sender, EventArgs e)
+        {
             ClearResults();
         }
 
@@ -217,7 +260,10 @@ namespace DeleteUnusedBranches
 
             IsRefreshing = true;
 
-            var context = new RefreshContext(gitCommands, IncludeRemoteBranches.Checked, includeUnmergedBranches.Checked, referenceBranch, remote.Text,
+            var mergeFilter = includeUnmergedBranches.Checked
+                ? optAllBranches.Checked ? MergeRelation.All : MergeRelation.NothingToMerge
+                : MergeRelation.MergedOnly;
+            var context = new RefreshContext(gitCommands, IncludeRemoteBranches.Checked, mergeFilter, referenceBranch, remote.Text,
                 useRegexFilter.Checked ? regexFilter.Text : null, TimeSpan.FromDays(days), refreshCancellation.Token);
             Task.Factory.StartNew(() => GetObsoleteBranches(context), CancellationToken.None, TaskCreationOptions.None, TaskScheduler.Default)
                 .ContinueWith(task =>
@@ -268,19 +314,19 @@ namespace DeleteUnusedBranches
         {
             private readonly IGitModule commands;
             private readonly bool includeRemotes;
-            private readonly bool includeUnmerged;
+            private readonly MergeRelation mergeFilter;
             private readonly string referenceBranch;
             private readonly string remoteRepositoryName;
             private readonly string regexFilter;
             private readonly TimeSpan obsolescenceDuration;
             private readonly CancellationToken cancellationToken;
 
-            public RefreshContext(IGitModule commands, bool includeRemotes, bool includeUnmerged, string referenceBranch,
+            public RefreshContext(IGitModule commands, bool includeRemotes, MergeRelation mergeFilter, string referenceBranch,
                 string remoteRepositoryName, string regexFilter, TimeSpan obsolescenceDuration, CancellationToken cancellationToken)
             {
                 this.commands = commands;
                 this.includeRemotes = includeRemotes;
-                this.includeUnmerged = includeUnmerged;
+                this.mergeFilter = mergeFilter;
                 this.referenceBranch = referenceBranch;
                 this.remoteRepositoryName = remoteRepositoryName;
                 this.regexFilter = regexFilter;
@@ -298,9 +344,9 @@ namespace DeleteUnusedBranches
                 get { return includeRemotes; }
             }
 
-            public bool IncludeUnmerged
+            public MergeRelation MergeFilter
             {
-                get { return includeUnmerged; }
+                get { return mergeFilter; }
             }
 
             public string ReferenceBranch
@@ -327,6 +373,24 @@ namespace DeleteUnusedBranches
             {
                 get { return cancellationToken; }
             }
+        }
+
+        private enum MergeRelation
+        {
+            /// <summary>
+            /// Both merged and unmerged branches.
+            /// </summary>
+            All,
+
+            /// <summary>
+            /// Only merged branches.
+            /// </summary>
+            MergedOnly,
+
+            /// <summary>
+            /// Branches where nothing to merge into selected root branch: already merged or unmerged with changes which are also exist in root branch (cherry-picked, for example)-.
+            /// </summary>
+            NothingToMerge
         }
     }
 }

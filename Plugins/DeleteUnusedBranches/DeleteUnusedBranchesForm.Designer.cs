@@ -60,6 +60,9 @@
             this.dateDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Author = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.Message = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.pnlUnmergedFilterOptions = new System.Windows.Forms.Panel();
+            this.optEmptyMergeBranches = new System.Windows.Forms.RadioButton();
+            this.optAllBranches = new System.Windows.Forms.RadioButton();
             statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.pnlBranchesArea.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.imgLoading)).BeginInit();
@@ -70,6 +73,7 @@
             ((System.ComponentModel.ISupportInitialize)(this.olderThanDays)).BeginInit();
             statusStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.branchBindingSource)).BeginInit();
+            this.pnlUnmergedFilterOptions.SuspendLayout();
             this.SuspendLayout();
             // 
             // statusStrip1
@@ -281,6 +285,7 @@
             this.tableLayoutPanel3.Controls.Add(this.mergedIntoBranch, 1, 1);
             this.tableLayoutPanel3.Controls.Add(this.olderThanDays, 1, 0);
             this.tableLayoutPanel3.Controls.Add(this.includeUnmergedBranches, 0, 4);
+            this.tableLayoutPanel3.Controls.Add(this.pnlUnmergedFilterOptions, 1, 4);
             this.tableLayoutPanel3.Dock = System.Windows.Forms.DockStyle.Fill;
             this.tableLayoutPanel3.Location = new System.Drawing.Point(3, 28);
             this.tableLayoutPanel3.Name = "tableLayoutPanel3";
@@ -397,6 +402,43 @@
             this.includeUnmergedBranches.UseVisualStyleBackColor = true;
             this.includeUnmergedBranches.CheckedChanged += new System.EventHandler(this.includeUnmergedBranches_CheckedChanged);
             // 
+            // pnlUnmergedFilterOptions
+            // 
+            this.pnlUnmergedFilterOptions.Controls.Add(this.optEmptyMergeBranches);
+            this.pnlUnmergedFilterOptions.Controls.Add(this.optAllBranches);
+            this.pnlUnmergedFilterOptions.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.pnlUnmergedFilterOptions.Enabled = false;
+            this.pnlUnmergedFilterOptions.Location = new System.Drawing.Point(380, 123);
+            this.pnlUnmergedFilterOptions.Name = "pnlUnmergedFilterOptions";
+            this.pnlUnmergedFilterOptions.Size = new System.Drawing.Size(371, 24);
+            this.pnlUnmergedFilterOptions.TabIndex = 15;
+            // 
+            // optEmptyMergeBranches
+            // 
+            this.optEmptyMergeBranches.AutoSize = true;
+            this.optEmptyMergeBranches.Dock = System.Windows.Forms.DockStyle.Left;
+            this.optEmptyMergeBranches.Location = new System.Drawing.Point(83, 0);
+            this.optEmptyMergeBranches.Name = "optEmptyMergeBranches";
+            this.optEmptyMergeBranches.Size = new System.Drawing.Size(234, 24);
+            this.optEmptyMergeBranches.TabIndex = 1;
+            this.optEmptyMergeBranches.Text = "Branches which will give empty merge (slow)";
+            this.optEmptyMergeBranches.UseVisualStyleBackColor = true;
+            this.optEmptyMergeBranches.CheckedChanged += new System.EventHandler(this.optEmptyMergeBranches_CheckedChanged);
+            // 
+            // optAllBranches
+            // 
+            this.optAllBranches.AutoSize = true;
+            this.optAllBranches.Checked = true;
+            this.optAllBranches.Dock = System.Windows.Forms.DockStyle.Left;
+            this.optAllBranches.Location = new System.Drawing.Point(0, 0);
+            this.optAllBranches.Name = "optAllBranches";
+            this.optAllBranches.Size = new System.Drawing.Size(83, 24);
+            this.optAllBranches.TabIndex = 0;
+            this.optAllBranches.TabStop = true;
+            this.optAllBranches.Text = "All branches";
+            this.optAllBranches.UseVisualStyleBackColor = true;
+            this.optAllBranches.CheckedChanged += new System.EventHandler(this.optAllBranches_CheckedChanged);
+            // 
             // DeleteUnusedBranchesForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
@@ -422,6 +464,8 @@
             statusStrip1.ResumeLayout(false);
             statusStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.branchBindingSource)).EndInit();
+            this.pnlUnmergedFilterOptions.ResumeLayout(false);
+            this.pnlUnmergedFilterOptions.PerformLayout();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -456,5 +500,8 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn dateDataGridViewTextBoxColumn;
         private System.Windows.Forms.DataGridViewTextBoxColumn Author;
         private System.Windows.Forms.DataGridViewTextBoxColumn Message;
+        private System.Windows.Forms.Panel pnlUnmergedFilterOptions;
+        private System.Windows.Forms.RadioButton optEmptyMergeBranches;
+        private System.Windows.Forms.RadioButton optAllBranches;
     }
 }
